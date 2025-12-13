@@ -210,7 +210,7 @@ function DisplayEditor({editor, editorType}: DisplayEditorProps) {
 
 
   return (
-    <div className="">
+    <div className="w-full h-full">
       { editorType === 'html' && editor &&
       <EditorContext.Provider value={{ editor }}>
         <Toolbar

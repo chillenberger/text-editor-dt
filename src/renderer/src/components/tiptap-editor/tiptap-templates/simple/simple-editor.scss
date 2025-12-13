@@ -65,6 +65,8 @@ body {
   width: 100%;
   margin: 0 auto;
   height: 100%;
+  min-height: 0; // allow flex children to shrink within parent
+  overflow: auto; // ensure scroll when content exceeds parent
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -72,11 +74,14 @@ body {
 
 .simple-editor-content .tiptap.ProseMirror.simple-editor {
   flex: 1;
-  padding: 3rem 3rem 30vh;
+  /* avoid creating extra vertical overflow with large bottom padding */
+  padding: 3rem 3rem 3rem;
+  min-height: 0;
+  overflow: auto;
 }
 
 @media screen and (max-width: 480px) {
   .simple-editor-content .tiptap.ProseMirror.simple-editor {
-    padding: 1rem 1.5rem 30vh;
+    padding: 1rem 1.5rem 2rem;
   }
 }

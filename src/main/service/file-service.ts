@@ -1,21 +1,15 @@
 
 import { writeFileSync, unlinkSync, statSync } from 'fs';
-import fs from 'fs';
 import path from 'path';
-import { Dir, Doc } from '../../types';
+import { PathTree } from '../../types';
 import { readFile, readdir } from 'fs';
 import exec from 'child_process';
 import { ipcMain, dialog } from 'electron';
 import { app } from 'electron';
-import { IpcMainEvent } from 'electron';
 
 // TODO: ensure no files outside public are ever updated. Security risk.
 
-async function getRootPath() {
-  return import.meta.env.VITE_ROOT_DIR;
-}
-
-async function getFileSystem(folder: string): Promise<Dir> {
+async function getFileSystem(folder: string): Promise<PathTree> {
   return new Promise((resolve, reject) => {
     readdir(folder, (err, files) => {
       if (err) {
@@ -30,26 +24,22 @@ async function getFileSystem(folder: string): Promise<Dir> {
         file.length > 0
       );
 
-      const root: Dir = { title: path.basename(folder), children: [] };
+      const root: PathTree = { title: path.basename(folder), pathType: 'dir', children: [] };
 
       // Create promises for reading each file
       const fileReadPromises = validFiles.map(file => {
         return new Promise<void>((fileResolve, fileReject) => {
           const fullPath = path.join(folder, file);
           if( statSync(fullPath).isFile()) {
-            readFile(fullPath, (err, data) => {
-              if (err) {
-                console.error(`Error reading file ${fullPath}:`, err);
-                fileReject(err);
-              } else {
-                root.children.push({ title: file, content: data.toString() });
-                fileResolve();
-              }
-            });
+            if ( root.children === null ) root.children = [];
+            root.children.push({ title: file, pathType: 'file', children: null });
+            fileResolve();
           } else {
             // It's a directory, recurse into it
             getFileSystem(path.join(folder, file)).then(subDirs => {
-              root.children.push({ title: file, children: subDirs.children });
+              if ( root.children === null ) root.children = [];
+              root.children.push({ title: file, pathType: 'dir', children: subDirs.children });
+              root.children.sort((a, b) => a.title.localeCompare(b.title));
               fileResolve();
             }).catch(fileReject);
           }
@@ -66,53 +56,39 @@ async function getFileSystem(folder: string): Promise<Dir> {
   });
 }
 
-async function setFileSystem(dir: Dir, folder: string) {
-  console.log("Setting file system for folder: ", folder);
-  const serverDir = await getFileSystem(folder);
-
-  // Delete files that are on server but not in dir
-  for ( const serverFile of serverDir.children ) {
-    const file = dir.children.find(f => f.title === serverFile.title);
-    if ( !file ) {
-      await deleteFile(serverFile.title, folder);
-    } else if ( 'children' in serverFile && 'children' in file ) {
-      await setFileSystem(file, path.join(folder, file.title));
-    }
+async function addFile(path: string, content: string) {
+  try {
+    writeFileSync(path, content, { flag: 'wx' });
+  } catch (error) {
+    console.error(`Error adding file ${path}`, error);
   }
+}
 
-  // Update or add files from dir to server
-  for ( const file of dir.children ) {
-    if ( 'content' in file ) {
-      await updateFile(file, folder);
-    } else if ( 'children' in file ) {
-      const subFolder = path.join(folder, file.title);
-      try {
-        statSync(subFolder);
-      } catch (error) {
-        // Directory does not exist, create it
-        fs.mkdirSync(subFolder);
+async function deleteFile(path: string) {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    console.error(`Error deleting file ${path}:`, error);
+  }
+}
+
+async function readFileContent(filePath: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    readFile(filePath, (err, data) => {
+      if (err) {
+        console.error(`Error reading file ${filePath}:`, err);
+        return reject(err);
       }
-      await setFileSystem(file, subFolder);
-    }
-  }
+      resolve(data.toString());
+    });
+  });
 }
 
-async function deleteFile(title: string, folder: string) {
-  const filePath = path.join(folder, title);
+async function updateFile(path: string, content: string) {
   try {
-    unlinkSync(filePath);
-    console.log(`Successfully deleted ${title}`);
+    writeFileSync(path, content, { flag: 'w' });
   } catch (error) {
-    console.error(`Error deleting file ${title} in ${filePath}:`, error);
-  }
-}
-
-async function updateFile(doc: Doc, folder: string) {
-  const filePath = path.join(folder, doc.title);
-  try {
-    writeFileSync(filePath, doc.content, { flag: 'w' });
-  } catch (error) {
-    console.error(`Error updating file ${doc.title} in ${filePath}:`, error);
+    console.error(`Error updating file ${path}`, error);
   }
 }
 
@@ -150,18 +126,25 @@ export default function setUpFileSystemHandlers() {
     return fileSystem;
   })
 
-  ipcMain.handle('push-file-system', async (_, dir, folder) => {
-    await setFileSystem(dir, folder);
+  ipcMain.handle('update-file', async (_, filePath: string, content: string) => {
+    await updateFile(filePath, content);
+  })
+
+  ipcMain.handle('delete-file', async (_, filePath: string) => {
+    await deleteFile(filePath);
+  })
+
+  ipcMain.handle('read-file', async (_, filePath: string) => {
+    return await readFileContent(filePath);
+  })
+
+  ipcMain.handle('add-file', async (_, filePath: string, content: string) => {
+    await addFile(filePath, content);
   })
 
   ipcMain.handle('select-folder', async (_, projectName: string) => {
       const folder = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
       return folder;
-  })
-
-  ipcMain.handle('get-root-path', async () => {
-    const rootPath = await getRootPath();
-    return rootPath;
   })
 
   ipcMain.handle('export-html-to-pdf', async (_, formData: { filePath: string, content: string }) => {
