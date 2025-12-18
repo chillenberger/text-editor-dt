@@ -1,14 +1,10 @@
 
 import { z } from "zod";
 
-export type Dir = {
+export type PathTree = {
   title: string;
-  children: (Dir | Doc)[];
-}
-
-export type Doc = {
-  title: string;
-  content: string;
+  pathType: 'dir' | 'file';
+  children: PathTree[] | null;
 }
 
 export type File = {

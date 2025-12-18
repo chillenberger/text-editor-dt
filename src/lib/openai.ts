@@ -1,4 +1,4 @@
-import { Agent, run, MCPServerStdio, RunStreamEvent, setDefaultOpenAIKey } from '@openai/agents';
+import { Agent, run, MCPServerStdio, RunStreamEvent, setDefaultOpenAIKey, MCPServerStreamableHttp } from '@openai/agents';
 
 
 const GENERAL_SYSTEM_PROMPT = `
@@ -88,6 +88,17 @@ Lead with a thesis, develop it with concrete examples or contrasts, use at most 
 - Simple, grounded takeaway in the final sentence
 `
 
+const TESTING_PROMPT = `
+# Role
+You are a helpful assistant that helps me navigate my website.  
+You have access to the client state via a tool called getClientState which returns a JSON string. 
+The return JSON string has the following format:
+{
+  "current_file": "string", // the file currently open in the editor
+  "cursor_position": number // the current cursor position in the file
+}
+`
+
 class MyAgent {
   private agent: Agent;
   private agentId: string;
@@ -128,12 +139,24 @@ class MyAgent {
   }
 
   private CreateAgent(mcpServer: MCPServerStdio | null): Agent {
+    // const HttpMcpServer = new MCPServerStreamableHttp({
+    //   url: 'http://localhost:8000',
+    //   name: 'Client State MCP Server',
+    // });
+
     const result =  new Agent({
       name: 'FS MCP Assistant',
       model: 'gpt-5',
       instructions: this.PromptConstructor(this.agentId),
       mcpServers: mcpServer ? [mcpServer] : []
     });
+    // HttpMcpServer.connect();
+    // const result =  new Agent({
+    //   name: 'FS MCP Assistant',
+    //   model: 'gpt-5',
+    //   instructions: TESTING_PROMPT,
+    //   mcpServers: [HttpMcpServer]
+    // });
     return result;
   }
 
