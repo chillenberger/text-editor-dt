@@ -1,5 +1,5 @@
 
-import { writeFileSync, unlinkSync, statSync } from 'fs';
+import { writeFileSync, unlinkSync, statSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { PathTree } from '../../types';
 import { readFile, readdir } from 'fs';
@@ -56,27 +56,32 @@ async function getFileSystem(folder: string): Promise<PathTree> {
   });
 }
 
-async function addFile(path: string, content: string) {
+async function addFile(fullPath: string, content: string) {
   try {
-    writeFileSync(path, content, { flag: 'wx' });
+    const dirName = path.dirname(fullPath);
+    if (!existsSync(dirName)) {
+      mkdirSync(dirName, { recursive: true });
+    }
+
+    writeFileSync(fullPath, content, { flag: 'wx' });
   } catch (error) {
-    console.error(`Error adding file ${path}`, error);
+    console.error(`Error adding file ${fullPath}`, error);
   }
 }
 
-async function deleteFile(path: string) {
+async function deleteFile(fullPath: string) {
   try {
-    unlinkSync(path);
+    unlinkSync(fullPath);
   } catch (error) {
-    console.error(`Error deleting file ${path}:`, error);
+    console.error(`Error deleting file ${fullPath}:`, error);
   }
 }
 
-async function readFileContent(filePath: string): Promise<string> {
+async function readFileContent(fullPath: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    readFile(filePath, (err, data) => {
+    readFile(fullPath, (err, data) => {
       if (err) {
-        console.error(`Error reading file ${filePath}:`, err);
+        console.error(`Error reading file ${fullPath}:`, err);
         return reject(err);
       }
       resolve(data.toString());
