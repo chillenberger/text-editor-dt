@@ -8,6 +8,9 @@ import { initializeAgent, chatStream } from './service/chat-service'
 import LocalStorage from '../db/local';
 import setUpLoggerHandlers from './service/logger-service'
 import { dialog } from 'electron';
+import { updateEmbeddingsForFile } from '../lib/chuncker';
+import { getFileSystem } from './service/file-service';
+import { flattenDir } from '../lib/file';
 
 dotenv.config()
 
@@ -41,7 +44,12 @@ function createWindow(): void {
     label: 'Save File',
     click: () => mainWindow.webContents.send('main-request-file-state'),
     accelerator: 'CommandOrControl+S'
-  }])
+    }, 
+    {
+      label: 'embed all files',
+      click: () => update,
+    }
+  ])
 
   menu.append(new MenuItem({ label: 'Custom Menu', submenu }))
   Menu.setApplicationMenu(menu)
@@ -97,7 +105,7 @@ app.whenReady().then(() => {
   ipcMain.handle('test-func', (_, data) => {
     console.log("data sent: ", data);
 
-    return localStorage.getAllExampleEntries();
+    return localStorage.userActions.getAllExampleEntries();
   })
 })
 
@@ -129,5 +137,34 @@ ipcMain.handle('initialize-agent', async (_, projectName: string, folders: strin
 })
 
 ipcMain.on('chat-stream', async (event, userQuery: string, previousResponseId: string | null, folders: string[], chatSessionFromForm: string, timeLastRequestFromForm: string, agentId: string) => {
+  // Re-embed changed files before sending request. 
+  const actionLogs = localStorage.userActions.getActionLogsBySessionAndCreatedAt(chatSessionFromForm, timeLastRequestFromForm);
+  console.log("actionLogs: ", actionLogs);
+
+  for (const log of actionLogs) {
+    if (log.action_type === 'file-updated') {
+      const details = JSON.parse(log.details);
+      const filePath = details.filePath;
+      const content = details.content;
+      console.log(`Updating embeddings for file: ${filePath}`);
+      await updateEmbeddingsForFile(filePath, content, localStorage);
+    }
+  }
+
   return await chatStream(event, userQuery, previousResponseId, folders, chatSessionFromForm, timeLastRequestFromForm, agentId);
 })
+
+ipcMain.handle('update-embeddings-for-file', async (_, filePath: string, content: string) => {
+  await updateEmbeddingsForFile(filePath, content, localStorage);
+})
+
+async function updateEmbeddingForAllFiles(filePaths: string[]) {
+  for (const filePath of filePaths) {
+    const dir = await getFileSystem(filePath);
+    let files = flattenDir(dir);
+
+    // read all files in dir
+    const fs = require('fs');
+    const path = require('path');
+  }
+}

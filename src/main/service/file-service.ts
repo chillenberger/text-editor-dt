@@ -15,7 +15,7 @@ async function getRootPath() {
   return import.meta.env.VITE_ROOT_DIR;
 }
 
-async function getFileSystem(folder: string): Promise<Dir> {
+export async function getFileSystem(folder: string): Promise<Dir> {
   return new Promise((resolve, reject) => {
     readdir(folder, (err, files) => {
       if (err) {
