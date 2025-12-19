@@ -10,7 +10,6 @@ import setUpLoggerHandlers from './service/logger-service'
 import { dialog } from 'electron';
 import { updateEmbeddingsForFile } from '../lib/chuncker';
 import { getFileSystem } from './service/file-service';
-import { flattenDir } from '../lib/file';
 
 dotenv.config()
 
@@ -45,10 +44,10 @@ function createWindow(): void {
     click: () => mainWindow.webContents.send('main-request-file-state'),
     accelerator: 'CommandOrControl+S'
     }, 
-    {
-      label: 'embed all files',
-      click: () => update,
-    }
+    // {
+    //   label: 'embed all files',
+    //   click: () => update,
+    // }
   ])
 
   menu.append(new MenuItem({ label: 'Custom Menu', submenu }))
@@ -161,10 +160,8 @@ ipcMain.handle('update-embeddings-for-file', async (_, filePath: string, content
 async function updateEmbeddingForAllFiles(filePaths: string[]) {
   for (const filePath of filePaths) {
     const dir = await getFileSystem(filePath);
-    let files = flattenDir(dir);
+    // let files = flattenDir(dir);
 
-    // read all files in dir
-    const fs = require('fs');
-    const path = require('path');
+    
   }
 }

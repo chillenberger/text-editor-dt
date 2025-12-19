@@ -5,12 +5,9 @@ import { getContentTypeFromPath } from '../../../src/lib/file';
 import { DisplayEditor, useTipTapMarkdownEditor } from './components/tiptap-editor/tiptap-templates/simple/simple-editor';
 import useCKHtmlEditor from '@renderer/components/ck-editor/ck-editor';
 import DisplayCKEditor from '@renderer/components/ck-editor/ck-editor-display';
-import PineconeDelicate from '@renderer/components/pinecone-art';
 import useLogger from '@renderer/hooks/use-logger';
 import ChatWindow from '@renderer/components/chat';
-import Split from '@uiw/react-split';
 import LeftNav from './components/left-nav';
-import SecondaryButton from './components/button';
 import Toggle from './components/toggle';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -42,7 +39,7 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const cleanup = window.api.mainRequestFileState(() => {
       console.log("Received save request from main process");
-      const activeFile = activeFileManager.getFile();
+      const activeFile = activeFileManager.activeFile;
       if (activeFile) {
         const content = extractFileContent();
         virtualDir.updateFile(activeFile.path, content);
@@ -56,7 +53,7 @@ function App(): React.JSX.Element {
   const htmlEditor = useCKHtmlEditor(() => activeFileManager.nextActiveFileState());
 
   const extractFileContent = useCallback(() => {
-    const activeFile = activeFileManager.getFile();
+    const activeFile = activeFileManager.activeFile;
     if (!activeFile) return '';
     const contentType = getContentTypeFromPath(activeFile?.path);
     if (contentType === 'markdown') {
@@ -64,56 +61,51 @@ function App(): React.JSX.Element {
     } else {
       return htmlEditor?.editorRef.current?.getData() || '';
     }
-  }, [activeFileManager, markdownEditor, htmlEditor]);
+  }, [activeFileManager.activeFile, markdownEditor, htmlEditor]);
 
     // Whenever active file changes, load its content into the appropriate editor.
   useEffect(() => {
-    const contentType = getContentTypeFromPath(activeFileManager.getFile()?.path || '');
+    console.log("Active file changed:", activeFileManager.activeFile);
+    const contentType = getContentTypeFromPath(activeFileManager.activeFile?.path || '');
     activeFileManager.resetActiveFileState();
 
     if (contentType === 'markdown' && markdownEditor) {
-      const markdownContent = activeFileManager?.getFile()?.content || '';
+      const markdownContent = activeFileManager?.activeFile?.content || '';
       markdownEditor?.commands.setContent(markdownContent, {contentType: 'markdown'});
     } else if (contentType === 'html' && htmlEditor?.editorRef.current) {
-      const htmlContent = activeFileManager?.getFile()?.content || '';
+      const htmlContent = activeFileManager?.activeFile?.content || '';
       htmlEditor?.editorRef.current.setData(htmlContent);
     }
-  }, [activeFileManager, markdownEditor, htmlEditor]);
+  }, [activeFileManager.activeFile, markdownEditor, htmlEditor]);
 
-  const handleSwitchActiveFile = useCallback((filePath: string) => {
+  const handleSwitchActiveFile = useCallback(async (filePath: string) => {
     if ( activeFileManager.isEdited() ) {
-      virtualDir.updateFile(activeFileManager.getFile()?.path || '', extractFileContent());
+      await virtualDir.updateFile(activeFileManager.activeFile?.path || '', extractFileContent());
       activeFileManager.resetActiveFileState();
     }
     setShowActiveFile(true);
-    activeFileManager.setFile(filePath);
+    const rsp = await virtualDir.getFile(filePath);
+    activeFileManager.setFile(filePath, rsp.file?.content || '');
   }, [extractFileContent, activeFileManager]);
 
   const handleOnFileDelete = useCallback((filePath: string) => {
-    console.log("Deleting file: ", filePath);
-    if ( activeFileManager.isEdited() ) {
-      virtualDir.updateFile(activeFileManager.getFile()?.path || '', extractFileContent());
-      activeFileManager.resetActiveFileState();
+    if ( activeFileManager.activeFile?.path === filePath ) {
+      activeFileManager.unset();
+      setShowActiveFile(false);
     }
     virtualDir.deleteFile(filePath);
   }, [extractFileContent, activeFileManager]);
 
   const handleOnFileCreate = useCallback((filePath: string) => {
-    console.log("Creating file: ", filePath);
-    if ( activeFileManager.isEdited() ) {
-      virtualDir.updateFile(activeFileManager.getFile()?.path || '', extractFileContent());
-      activeFileManager.resetActiveFileState();
-    }
     virtualDir.addFile(filePath, 'New file content');
   }, [extractFileContent, virtualDir.addFile]); 
 
     const handleOnChatRequest = useCallback(async () => {
     if ( activeFileManager.isEdited() ) {
-      virtualDir.updateFile(activeFileManager.getFile()?.path || '', extractFileContent());
+      await virtualDir.updateFile(activeFileManager.activeFile?.path || '', extractFileContent());
       activeFileManager.resetActiveFileState();
     }
-    await virtualDir.pushFileSystem();
-  }, [extractFileContent, virtualDir.updateFile, virtualDir.pushFileSystem]);
+  }, [extractFileContent, virtualDir.updateFile]);
 
   const handleRemoveDir = (path: string) => {
     console.log("Removing directory: ", path);
@@ -126,7 +118,8 @@ function App(): React.JSX.Element {
       setDirsPaths([...dirsPaths, path]);
     }
   }
-    const handleFileSelect = async () => {
+
+  const handleFileSelect = async () => {
     const folder = await window.electron.ipcRenderer.invoke("select-folder", "some data");
     if ( folder && folder.filePaths && folder.filePaths.length > 0 ) {
       handleAddDir(folder.filePaths[0]);
@@ -135,15 +128,26 @@ function App(): React.JSX.Element {
 
   const handleHTMLExport = async () => {
     if ( activeFileManager.isEdited() ) {
-      virtualDir.updateFile(activeFileManager.getFile()?.path || '', extractFileContent());
+      virtualDir.updateFile(activeFileManager.activeFile?.path || '', extractFileContent());
       activeFileManager.resetActiveFileState();
     }
     const formData = {
-      filePath: activeFileManager.getFile()?.path || '',
+      filePath: activeFileManager.activeFile?.path || '',
       content: extractFileContent(),
     };
     await window.electron.ipcRenderer.invoke("export-html-to-pdf", formData);
   }
+
+  const handleOnChatResponse = useCallback(async () => {
+    // chat response overrides user edit. 
+    if ( activeFileManager.activeFile ) {
+      const updatedActiveFile = await virtualDir.getFile(activeFileManager.activeFile?.path || '');
+      activeFileManager.setFile(activeFileManager.activeFile?.path || '', updatedActiveFile.file?.content || '');
+    }
+    activeFileManager.resetActiveFileState();
+
+    virtualDir.pullFileSystem();
+  }, [extractFileContent, virtualDir.updateFile]);
 
   return (
   <div className="w-screen h-screen flex justify-between">
@@ -181,26 +185,26 @@ function App(): React.JSX.Element {
         </div>
       </div>
     </div>
-    {activeFileManager.getFile() && showActiveFile && 
-    <ContextContainer className="min-w-[648px] mx-auto my-6 z-1 overflow-hidden focus-within:z-4 p-2" color="purple">
+    {activeFileManager.activeFile && showActiveFile && 
+    <ContextContainer className="min-w-[648px] mx-auto my-6 z-1 focus-within:z-4 p-2 box-border flex flex-col h-[90vh] overflow-hidden" color="purple">
       <div className="flex flex-row justify-between mb-4">
-        <div>File: {activeFileManager.getFile() ? activeFileManager.getFile()?.path : 'Select File / Loading...'}</div>
+        <div>File: {activeFileManager.activeFile ? activeFileManager.activeFile?.path : 'Select File / Loading...'}</div>
         <div className="flex flex-row gap-2">
-          { getContentTypeFromPath(activeFileManager.getFile()?.path || '') === "html" && <button onClick={handleHTMLExport}><FontAwesomeIcon icon={faFileExport} /></button>}
-          <button onClick={() => setShowActiveFile(false)}><FontAwesomeIcon icon={faX} /></button>
+          { getContentTypeFromPath(activeFileManager.activeFile?.path || '') === "html" && <button onClick={handleHTMLExport}><FontAwesomeIcon icon={faFileExport} /></button>}
+          <button onClick={() => {activeFileManager.unset(); setShowActiveFile(false)}}><FontAwesomeIcon icon={faX} /></button>
         </div>
       </div>
-      <div className="w-full  h-full z-0 flex flex-col"> 
-        <div className="flex h-[90vh] overflow-auto">
-          { getContentTypeFromPath(activeFileManager.getFile()?.path || "") === 'markdown' ? 
+      <div className="z-0 flex flex-col flex-1 min-w-0 min-h-0"> 
+        <div className="w-full flex-1 min-w-0 min-h-0 overflow-auto">
+          { getContentTypeFromPath(activeFileManager.activeFile?.path || "") === 'markdown' ? 
             <DisplayEditor editor={markdownEditor} editorType={'markdown'} /> :  
-            <DisplayCKEditor editorHandle={htmlEditor} defaultContent={activeFileManager.getFile()?.content || ""}/> 
+            <DisplayCKEditor editorHandle={htmlEditor} defaultContent={activeFileManager.activeFile?.content || ""}/> 
           }
         </div>
       </div>
     </ContextContainer>}
     <ChatArea className="absolute right-0 h-full z-3 focus-within:z-4">
-      <ChatWindow loadDir={virtualDir.pullFileSystem} project="test" folders={dirsPaths} onRequest={handleOnChatRequest}/>
+      <ChatWindow project="test" folders={dirsPaths} onRequest={handleOnChatRequest} onResponse={handleOnChatResponse}/>
     </ChatArea>
   </div>
   )
@@ -231,7 +235,7 @@ function AddDirectory({path, setDirs, onSwitchActiveFile, onDeleteFile, onCreate
     }
   }, [])
 
-  return <FileTree dir={dir.dir} onFileChange={(path) => onSwitchActiveFile(path)} onFileCreate={(path) => onCreateFile(path)} onFileDelete={(path) => onDeleteFile(path)} onRemoveDir={() => handleRemoveDir(path)} />; 
+  return <FileTree pathTree={dir.dir} onFileChange={(path) => onSwitchActiveFile(path)} onFileCreate={(path) => onCreateFile(path)} onFileDelete={(path) => onDeleteFile(path)} onRemoveDir={() => handleRemoveDir(path)} />; 
 }
 
 function DragAndDrop(props: {children: React.ReactNode, onAddDir: (path: string) => void}) {

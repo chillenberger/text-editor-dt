@@ -7,28 +7,23 @@ import SecondaryButton from '@renderer/components/button';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { 
-  faUser,
   faRobot,
-  faCircleExclamation, 
   faRefresh,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   faPaperPlane
 } from '@fortawesome/free-regular-svg-icons';
 import { ChatResponse } from '../../../types';
-import { Font } from 'ckeditor5';
-import { kMaxLength } from 'buffer';
-import { Chat } from 'openai/resources/index.mjs';
 
 interface ChatWindowProps {
-  loadDir: () => void;
+  onResponse: () => void;
   project: string;
   folders: string[] | null;
   onRequest: () => Promise<void>;
 }
 
 export default function ChatWindow({
-    loadDir,
+    onResponse,
     project,
     onRequest,
     folders
@@ -55,7 +50,7 @@ export default function ChatWindow({
 
   // On response clear local edited files tracker and reload all files if changes by chat. 
   useEffect(() => {
-    loadDir()
+    onResponse();
   }, [conversation])
 
   function handleNewChat() {

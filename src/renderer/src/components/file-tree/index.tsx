@@ -1,16 +1,14 @@
 import { 
   faFile, 
   faFileExport,
-  faTrash,
-  faFileCirclePlus,
-  faAdd
+  faTrash
 } from '@fortawesome/free-solid-svg-icons';
-import { Dir, File, Doc } from 'src/types';
+import { File, PathTree } from 'src/types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useState } from 'react';
 
 interface FileTreeProps {
-  dir: Dir;
+  pathTree: PathTree;
   path?: string;
   onFileChange: (path: string) => void;
   onFileExport?: (path: string) => void;
@@ -21,7 +19,7 @@ interface FileTreeProps {
 }
 
 export default function FileTree({ 
-  dir,
+  pathTree,
   onFileChange,
   onFileExport, 
   onFileDelete, 
@@ -51,8 +49,8 @@ export default function FileTree({
   return (
     <>
       <RecurseFileTree
-        dir={dir}
-        path={dir.title}
+        pathTree={pathTree}
+        path={pathTree.title}
         onFileChange={onFileChange}
         onFileExport={onFileExport}
         onFileDelete={onFileDelete}
@@ -66,7 +64,7 @@ export default function FileTree({
 }
 
 function RecurseFileTree({
-  dir,
+  pathTree,
   path,
   onFileChange,
   onFileExport, 
@@ -75,7 +73,7 @@ function RecurseFileTree({
   onRemoveDir,
   handleCreateFile,
 }: {
-  dir: Dir;
+  pathTree: PathTree;
   path?: string;
   onFileChange: (path: string) => void;
   onFileExport?: (path: string) => void;
@@ -87,16 +85,16 @@ function RecurseFileTree({
 
   return (
     <div className="flex flex-col gap-1">
-      <FolderComponent dir={dir} path={path || ''} handleCreateFile={handleCreateFile} onFileDelete={onFileDelete} onRemoveDir={onRemoveDir}/>
-      {dir?.children.length > 0 && dir.children.map((item, key) => 
+      <FolderComponent pathTree={pathTree} path={path || ''} handleCreateFile={handleCreateFile} onFileDelete={onFileDelete} onRemoveDir={onRemoveDir}/>
+      {pathTree.children && pathTree.children.map((item, key) => 
             {
               const currentPath = path ? path + '/' + item.title : item.title;
             return (
             <div key={key} className="ml-4" attr-data={currentPath}>
-              {'content' in item && <FileComponent item={item} currentPath={currentPath} onFileChange={onFileChange} onFileExport={onFileExport} onFileDelete={onFileDelete} onFileSetAsContext={onFileSetAsContext}/>}
-              {'children' in item && item.children && (
+              {item.pathType === 'file' && <FileComponent item={item} currentPath={currentPath} onFileChange={onFileChange} onFileExport={onFileExport} onFileDelete={onFileDelete} onFileSetAsContext={onFileSetAsContext}/>}
+              {item.pathType === 'dir' && (
                 <RecurseFileTree
-                  dir={item}
+                  pathTree={item}
                   path={currentPath}
                   onFileChange={onFileChange}
                   onFileExport={onFileExport}
@@ -112,7 +110,7 @@ function RecurseFileTree({
 }
 
 function FileComponent({ item, currentPath, onFileChange, onFileExport, onFileDelete, onFileSetAsContext }: {
-  item: Doc;
+  item: PathTree;
   currentPath: string;
   onFileChange: (path: string) => void;
   onFileExport?: (path: string) => void;
@@ -148,7 +146,7 @@ function FileComponent({ item, currentPath, onFileChange, onFileExport, onFileDe
   )
 }
 
-function FolderComponent({dir: dir, path, handleCreateFile, onFileDelete, onRemoveDir}: {dir: Dir, path: string, handleCreateFile: (event: React.FormEvent<HTMLFormElement>) => Promise<void>, onFileDelete?: (path: string) => void, onRemoveDir?: () => void}) {
+function FolderComponent({pathTree, path, handleCreateFile, onFileDelete, onRemoveDir}: {pathTree: PathTree, path: string, handleCreateFile: (event: React.FormEvent<HTMLFormElement>) => Promise<void>, onFileDelete?: (path: string) => void, onRemoveDir?: () => void}) {
   const [showControlMenu, setShowControlMenu] = useState(false);
   const [showFileForm, setShowFileForm] = useState(false);
 
@@ -166,7 +164,7 @@ function FolderComponent({dir: dir, path, handleCreateFile, onFileDelete, onRemo
 
   return (
     <div className="font-semibold w-full flex justify-between" onContextMenu={(e) => handleRightClick(e, path)} >
-      {dir.title}
+      {pathTree.title}
       <div className="w-0 h-0">
         {showControlMenu && <div className="absolute"><FolderRightClickMenu currentPath={path} onFileDelete={onFileDelete} onFileCreate={() => setShowFileForm(!showFileForm) } onRemoveDir={onRemoveDir} /></div>}
       </div>

@@ -1,9 +1,9 @@
 // hook to manage file operations: load, add, update, delete, export
 // maintains local state of directory and files, syncs with server
-import { useState, useEffect, useCallback, useRef, useReducer, use } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
-import { Dir, File } from 'src/types';
-import { readFileInDir, createFileInDir, deleteFileFromDir, updateFileInDir, alphabetizeDir } from '../../../lib/file';
+import { File, PathTree } from 'src/types';
+import { createFileInPathTree, deleteFileFromPathTree } from '../../../lib/file';
 // import { flattenDir } from '@renderer/lib/file';
 import useLogger from '@renderer/hooks/use-logger';
  
@@ -11,20 +11,23 @@ import useLogger from '@renderer/hooks/use-logger';
 type ActiveFile = File | null;
 
 export type DirEditRsp = {
-  nextDirState: Dir;
+  nextDirState: PathTree;
   success: boolean
   file?: File;
 }
 
 export type ManagedFileSystem = {
-  dir: Dir;
-  setDir: React.Dispatch<React.SetStateAction<Dir>>;
-  getFile: (path: string) => DirEditRsp;
-  updateFile: (path: string, content: string) => DirEditRsp;
-  deleteFile: (path: string) => DirEditRsp;
-  addFile: (path: string, content: string) => DirEditRsp;
+  dir: PathTree;
+  setDir: React.Dispatch<React.SetStateAction<PathTree>>;
+  getFile: (path: string) => Promise<DirEditRsp>;
+  updateFile: (path: string, content: string) => Promise<DirEditRsp>;
+  deleteFile: (path: string) => Promise<DirEditRsp>;
+  addFile: (path: string, content: string) => Promise<DirEditRsp>;
   pullFileSystem: () => Promise<DirEditRsp>;
-  pushFileSystem: () => Promise<void>;
+}
+
+function concatFilePath(folder: string, filePath: string): string {
+  return folder?.split('/').slice(0, -1).join('/') + '/' + filePath;
 }
 
 function baseName(filePath: string): string {
@@ -33,44 +36,23 @@ function baseName(filePath: string): string {
 
 // Hook to manage a directory and maintain sync with server.
 function useManageFiles(folder: string | null): ManagedFileSystem {
-  const [dir, setDir] = useState<Dir>({ title: baseName(folder || ""), children: [] });
-  const dirIsInitialized = useRef(false);
-  const [pushLockout, setPushLockout] = useState<number>(0);
+  const [dir, setDir] = useState<PathTree>({ title: baseName(folder || ""), pathType: 'dir', children: [] });
   const logger = useLogger();
 
   // // On load pull current file system from cloud.
   useEffect(() => {
     console.log("Initializing file system for folder:", folder); 
     const initialPull = async() => {
-      const rsp = await pullFileSystem();
+      await pullFileSystem();
     }
     initialPull();
   }, [])
 
-  // // If local files change push local dir state to cloud.
-  useEffect(() => {
-    if ( !dirIsInitialized.current ) { dirIsInitialized.current = true; return; };
-    if ( pushLockout > 0 ) {
-      setPushLockout(pushLockout - 1);
-    } else {
-      pushFileSystem();
-    }
-  }, [dir]);
-
-  const pushFileSystem = useCallback(async () => {
-    console.log("Pushing file system for folder:", folder);
-    if ( folder ) {
-      await window.electron.ipcRenderer.invoke('push-file-system', dir, folder);
-    }
-  }, [dir, folder]);
-
+  // Pull the file system from the server and update local state.
   async function pullFileSystem(): Promise<DirEditRsp> {
     console.log("Pulling file system for folder:", folder);
-    setPushLockout(pushLockout + 1);
     if ( folder ) {
-      console.log("folder: ", folder);
-      const nextDirState: Dir = await window.electron.ipcRenderer.invoke('pull-file-system', folder);
-      
+      const nextDirState: PathTree = await window.electron.ipcRenderer.invoke('pull-file-system', folder);
       setDir(nextDirState);
 
       return {nextDirState, success: true};
@@ -79,37 +61,37 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
   }
   
   // Get a file at the path from the local store.
-  function getFile(path: string): DirEditRsp {
+  async function getFile(path: string): Promise<DirEditRsp> {
     console.log("dir Getting file:", path);
-    const file = readFileInDir(path, dir);
-    return {nextDirState: dir, success: file ? true : false, file: file ? file : undefined}
+
+    const fullPath = concatFilePath(folder || '', path);
+
+    let content = await window.electron.ipcRenderer.invoke('read-file', fullPath);
+    return {nextDirState: dir, success: content !== null, file: content !== null ? {path, content} : undefined};
   }
 
   // Update a file at the path for the local store.
-  function updateFile(filePath: string, content: string): DirEditRsp {
+  async function updateFile(filePath: string, content: string): Promise<DirEditRsp> {
     console.log("dir Updating file:", filePath);
-    const nextDirState = {...dir};
-    let file = readFileInDir(filePath, nextDirState);
-    if ( !file ) throw new Error(`File ${filePath} not found for update`);
-    file.content = content;
-    updateFileInDir(file, nextDirState);
-    setDir(nextDirState);
+
+    filePath = concatFilePath(folder || '', filePath);
+
+    await window.electron.ipcRenderer.invoke('update-file', filePath, content);
     logger.editedFileLog(filePath);
 
-    return {nextDirState,  success: true};
+    return {nextDirState: dir,  success: true};
   }
 
   // Add a file at the path for the local store.
-  function addFile(filePath: string, content: string): DirEditRsp {
+  async function addFile(filePath: string, content: string): Promise<DirEditRsp> {
     console.log("dir Adding file:", filePath, content);
-    const nextDirState = {...dir}
-    let existingFile = readFileInDir(filePath, nextDirState);
 
-    if ( existingFile ) {
-      existingFile.content = content;
-    } else {
-      createFileInDir({path: filePath, content} ,nextDirState)
-    }
+    const nextDirState = {...dir}
+
+    
+    createFileInPathTree({path: filePath, content: ''} , nextDirState) // add to local dir 
+    const fullPath = concatFilePath(folder || '', filePath);
+    await window.electron.ipcRenderer.invoke('add-file', fullPath, content); // add to server
 
     setDir(nextDirState);
     logger.createdFileLog(filePath);
@@ -118,10 +100,13 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
   }
 
   // Delete a file at the path for the local store.
-  function deleteFile(filePath: string): DirEditRsp {
+  async function deleteFile(filePath: string): Promise<DirEditRsp> {
     console.log("dir Deleting file:", filePath);
     const nextDirState = {...dir}
-    const success = deleteFileFromDir(filePath, nextDirState);
+
+    const success = deleteFileFromPathTree(filePath, nextDirState); // delete from local dir
+    const fullPath = concatFilePath(folder || '', filePath);
+    await window.electron.ipcRenderer.invoke('delete-file', fullPath); // delete from server
     setDir(nextDirState);
     logger.deletedFileLog(filePath);
 
@@ -136,7 +121,6 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
     deleteFile,
     addFile,
     pullFileSystem,
-    pushFileSystem,
   }
 }
 
@@ -160,29 +144,6 @@ function useManageActiveFile(dir: ManagedFileSystem[]) {
   const debounce = useRef<number>(Date.now());
   const logger = useLogger();
 
-    // Keep active file in sync with directory when dir is updated externally.
-  useEffect(() => {
-    console.log("Syncing active file with dir update.");
-    // If no active file, nothing to sync; ensure editor update state is reset
-    if (!activeFile || !activeDir?.current?.dir ) {
-      resetActiveFileState();
-      return;
-    }
-
-    const freshActiveFile = readFileInDir(activeFile.path, activeDir?.current?.dir);
-    if (!freshActiveFile) {
-      // File no longer exists in the updated dir
-      setActiveFile(null);
-      resetActiveFileState();
-      return;
-    }
-
-    // If content changed in the dir (e.g., after a pull), update the active file to reflect it
-    if (freshActiveFile.content !== activeFile.content) {
-      setActiveFile(freshActiveFile);
-    }
-  }, [dir])
-
   function isEdited(): boolean {
     if ( !activeFile || !activeDir ) return false;
     if ( activeFileState.current !== 'updated' ) return false;
@@ -204,7 +165,7 @@ function useManageActiveFile(dir: ManagedFileSystem[]) {
     }
   }
 
-  function setFile(path: string) {
+  async function setFile(path: string, content: string) {
     const dirName = path.split('/')[0];
     
     // O(n) fine since files should be limited in number
@@ -214,14 +175,14 @@ function useManageActiveFile(dir: ManagedFileSystem[]) {
 
     if ( !pathMfs ) return;
 
-    const file = readFileInDir(path, pathMfs.dir)
-    setActiveFile(file);
+    setActiveFile({path, content});
     logger.switchedActiveFileLog(path);
     activeDir.current = pathMfs;
   }
 
-  function getFile(): File | null {
-    return activeFile;
+  function unset() {
+    setActiveFile(null);
+    activeDir.current = null;
   }
 
   function getDir(): ManagedFileSystem | null {
@@ -229,30 +190,30 @@ function useManageActiveFile(dir: ManagedFileSystem[]) {
   }
 
   return {
-    getFile,
+    activeFile,
     getDir,
     isEdited,
     resetActiveFileState,
     nextActiveFileState,
     setFile,
+    unset,
   }
 }
 
 export type VirtualManagedFileSystem = {
-  virtualDir: Dir;
-  getFile: (path: string) => DirEditRsp;
-  updateFile: (path: string, content: string) => DirEditRsp;
-  deleteFile: (path: string) => DirEditRsp;
-  addFile: (path: string, content: string) => DirEditRsp;
+  virtualDir: PathTree;
+  getFile: (path: string) =>  Promise<DirEditRsp>;
+  updateFile: (path: string, content: string) => Promise<DirEditRsp>;
+  deleteFile: (path: string) => Promise<DirEditRsp>;
+  addFile: (path: string, content: string) => Promise<DirEditRsp>;
   pullFileSystem: () => Promise<DirEditRsp>;
-  pushFileSystem: () => Promise<void>;
 }
 
 // Put all directories into a virtual directory.
 function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): VirtualManagedFileSystem {
   const managedFileSystems = dirs;
 
-  const virtualDir = {title: projectName, children: dirs.map(mfs => mfs.dir)};
+  const virtualDir: PathTree = {title: projectName, pathType: 'dir', children: dirs.map(mfs => mfs.dir)};
 
   function _consolidateDirRsp(rsp: DirEditRsp): DirEditRsp {
     const nextVirtualDirState = { ...virtualDir };
@@ -261,11 +222,11 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
       return {nextDirState: virtualDir, success: false};
     }
 
-    nextVirtualDirState.children[dirIndex] = rsp.nextDirState;
-    return {nextDirState: nextVirtualDirState, success: rsp.success};
+    if ( nextVirtualDirState.children ) nextVirtualDirState.children[dirIndex] = rsp.nextDirState;
+    return {nextDirState: nextVirtualDirState, success: rsp.success, file: rsp.file};
   }
 
-  function _useManageFilesWrapper(command: string, filePath: string, content?: string): DirEditRsp {
+  async function _useManageFilesWrapper(command: string, filePath: string, content?: string): Promise<DirEditRsp> {
     const pathSplit = filePath.split('/');
     if ( pathSplit[0] === projectName ) pathSplit.shift(); // remove project title;
     const dirTitle = pathSplit[0];
@@ -275,21 +236,21 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
     if ( mfsResults ) {
       switch(command) {
         case 'get': {
-          const rsp = mfsResults.getFile(filePath);
+          const rsp = await mfsResults.getFile(filePath);
           return _consolidateDirRsp(rsp);
         }
         case 'update': {
           if ( content === undefined ) return {nextDirState: virtualDir, success: false};
-          const rsp = mfsResults.updateFile(filePath, content);
+          const rsp = await mfsResults.updateFile(filePath, content);
           return _consolidateDirRsp(rsp);
         }
         case 'delete': {
-          const rsp = mfsResults.deleteFile(filePath);
+          const rsp = await mfsResults.deleteFile(filePath);
           return _consolidateDirRsp(rsp);
         }
         case 'add':
           if ( content === undefined ) return {nextDirState: virtualDir, success: false};
-          const rsp = mfsResults.addFile(filePath, content);
+          const rsp = await mfsResults.addFile(filePath, content);
           return _consolidateDirRsp(rsp);
       }
     }
@@ -297,29 +258,25 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
     return {nextDirState: virtualDir, success: false};
   }
 
-  function getFile(filePath: string): DirEditRsp {
-    return _useManageFilesWrapper('get', filePath);
+  async function getFile(filePath: string): Promise<DirEditRsp> {
+    return await _useManageFilesWrapper('get', filePath);
   }
 
-  function updateFile(filePath: string, content: string): DirEditRsp {
-    return _useManageFilesWrapper('update', filePath, content);
+  async function updateFile(filePath: string, content: string): Promise<DirEditRsp> {
+    return await _useManageFilesWrapper('update', filePath, content);
   }
 
-  function deleteFile(filePath: string): DirEditRsp {
-    return _useManageFilesWrapper('delete', filePath);
+  async function deleteFile(filePath: string): Promise<DirEditRsp> {
+    return await _useManageFilesWrapper('delete', filePath);
   }
 
-  function addFile(filePath: string, content: string): DirEditRsp {
-    return _useManageFilesWrapper('add', filePath, content);
+  async function addFile(filePath: string, content: string): Promise<DirEditRsp> {
+    return await _useManageFilesWrapper('add', filePath, content);
   }
 
   async function pullFileSystem(): Promise<DirEditRsp> {
     await Promise.all(managedFileSystems.map(mfs => mfs.pullFileSystem()));
     return _consolidateDirRsp({nextDirState: virtualDir, success: true});
-  }
-
-  async function pushFileSystem(): Promise<void> {
-    await Promise.all(managedFileSystems.map(mfs => mfs.pushFileSystem()));
   }
 
 
@@ -330,7 +287,6 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
     deleteFile,
     addFile,
     pullFileSystem,
-    pushFileSystem,
   };
 }
 
