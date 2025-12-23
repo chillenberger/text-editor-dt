@@ -1,12 +1,22 @@
 import { RecursiveChunker, Chunk } from '@chonkiejs/core';
+import OpenAI from "openai";
 
+if (!import.meta.env.VITE_OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY is not set. Provide it via environment at launch time.");
+}
+
+const openai = new OpenAI({ apiKey: import.meta.env.VITE_OPENAI_API_KEY });
 
 export async function chunkDocument(text: string): Promise<Chunk[]> {
   const chunker = await RecursiveChunker.create({ // TODO: change this to a semantic chunker
     chunkSize: 512
   });
+
+  const chunks = await chunker.chunk(text);
+
+  console.log("Chunks: ", chunks);
   
-  return await chunker.chunk(text);
+  return chunks;
 }
 
 export async function updateEmbeddingsForFile(filePath: string, content: string, localStorage: any): Promise<void> {
@@ -19,30 +29,31 @@ export async function updateEmbeddingsForFile(filePath: string, content: string,
   );
 
   // Build new chunk set, preserving relative order (chunk_index)
-  const newItems: Array<{content_hash: string, embedding_vector: Buffer, file_path: string, chunk_index: number}> = [];
+  const newItems: Array<{content_hash: string, embedding_vector: number[], file_path: string, chunk_index: number}> = [];
   const newHashes = new Set<string>();
   const chunkIndexUpdates: Array<{id: number; chunk_index: number}> = [];
 
-  chunks.forEach((chunk, index) => {
+  for (const [index, chunk] of chunks.entries()) {
     const content_hash = generateContentHash(chunk.text);
     newHashes.add(content_hash);
 
     const existing = existingHashMap.get(content_hash);
+    // Only generate embedding if it doesn't exist already
     if (existing) {
       if (existing.chunk_index !== index) {
         chunkIndexUpdates.push({ id: existing.id, chunk_index: index });
       }
-      return; // keep existing embedding_vector
-    }
+    } else {
+      const embedding_vector = await generateEmbeddingVector(chunk.text);
 
-    // Only generate embedding if it doesn't exist already
-    newItems.push({
-      content_hash,
-      embedding_vector: generateEmbeddingVector(chunk.text),
-      file_path: filePath,
-      chunk_index: index
-    });
-  });
+      newItems.push({
+        content_hash,
+        embedding_vector,
+        file_path: filePath,
+        chunk_index: index
+      });
+    }
+  };
 
   // Delete embeddings that are no longer present
   for (const [hash, { id }] of existingHashMap) {
@@ -73,8 +84,24 @@ function generateContentHash(content: string): string {
   return hash.toString();
 }
 
-function generateEmbeddingVector(content: string): Buffer {
-  // Placeholder function to generate a dummy embedding vector
-  const vector = new Float32Array(128).fill(0).map((_, i) => Math.random());
-  return Buffer.from(vector.buffer);
+async function generateEmbeddingVector(content: string): Promise<number[]> {
+  console.log("calculating embedding for content of length: ", content.length);
+  const embedding = await openai.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: content
+  });
+
+  return embedding.data[0].embedding;
 } 
+
+// Search embeddings for top K relevant embeddings.
+export async function searchEmbeddings(query: string, localStorage: any, topK: number = 5, filePaths: string[]): Promise<Array<{file_path: string; score: number}>> {
+  const embedding_vector = await generateEmbeddingVector(query);
+  return localStorage.embeddings.getTopKSimilarEmbeddings(embedding_vector, topK, filePaths);
+}
+
+// Distinct file paths only
+export async function searchEmbeddingsDistinct(query: string, localStorage: any, topK: number = 5, filePaths: string[]): Promise<Array<{file_path: string; score: number}>> {
+  const embedding_vector = await generateEmbeddingVector(query);
+  return localStorage.embeddings.getTopKDistinctFilePaths(embedding_vector, topK, filePaths);
+}

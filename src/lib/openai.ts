@@ -1,5 +1,9 @@
-import { Agent, run, MCPServerStdio, RunStreamEvent, setDefaultOpenAIKey, MCPServerStreamableHttp } from '@openai/agents';
-
+import { Agent, run, MCPServerStdio, RunStreamEvent, setDefaultOpenAIKey, MCPServerStreamableHttp, tool } from '@openai/agents';
+import { getFileSystem } from '../main/service/file-service';
+import { flattenPathTree } from '../lib/paths';
+import { searchEmbeddingsDistinct } from './embeddings';
+import { z } from 'zod';
+import LocalStorage from '../db/local';
 
 const GENERAL_SYSTEM_PROMPT = `
 # General Instructions
@@ -9,7 +13,7 @@ const GENERAL_SYSTEM_PROMPT = `
 const FILE_SYSTEM_PROMPT = `
 # File System Instructions
 - You have access to the filesystem via tools.
-- You will review all the files available to you when we begin our conversation.
+- You have access to the get_relevant_files tool. You can create a query for information you need and this tool will return the top 5 files that has this information.
 - If you are unable to find any files, you can say so instead of assuming they exist.
 - If a file changes during our conversation, review it and adjust your recommendations accordingly.
 - You can read, write, create, and delete files as needed.
@@ -103,9 +107,11 @@ class MyAgent {
   private agent: Agent;
   private agentId: string;
   private mcpServer: MCPServerStdio | null = null;
+  private folders: string[] = [];
+  private localStorage: LocalStorage;
   projectName: string;
 
-  constructor(projectName: string, folders: string[], agentId: string = "a0") {
+  constructor(projectName: string, folders: string[], agentId: string = "a0", localStorageDB: LocalStorage) {
     console.log("Initializing MCP server for project:", folders, "with agentId:", agentId);
 
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
@@ -113,9 +119,12 @@ class MyAgent {
     }
     setDefaultOpenAIKey(import.meta.env.VITE_OPENAI_API_KEY);
 
+    this.folders = folders;
+
     this.projectName = projectName;
     this.mcpServer = folders.length > 0 ? this.CreateServer(folders) : null;
     this.agentId = agentId;
+    this.localStorage = localStorageDB;
 
     this.agent = this.CreateAgent(this.mcpServer);
     this.mcpServer?.connect();
@@ -148,8 +157,10 @@ class MyAgent {
       name: 'FS MCP Assistant',
       model: 'gpt-5',
       instructions: this.PromptConstructor(this.agentId),
-      mcpServers: mcpServer ? [mcpServer] : []
+      mcpServers: mcpServer ? [mcpServer] : [],
+      tools: [this.generateTools()],
     });
+
     // HttpMcpServer.connect();
     // const result =  new Agent({
     //   name: 'FS MCP Assistant',
@@ -200,7 +211,29 @@ class MyAgent {
       console.error("Error during agent runStream:", error);
     }
   }
-}
+
+
+  generateTools() {
+    const folders = this.folders;
+    const localStorage = this.localStorage;
+    return tool({
+      name: 'get_relevant_files',
+      description: 'Get the top 5 relevant file paths based on a query.',
+      parameters: z.object({ query: z.string() }),
+      async execute({ query }) {
+          const allFilePaths: string[] = [];
+          for (const dir of folders) {
+              const dirTree = await getFileSystem(dir);
+              const filePaths = flattenPathTree(dirTree, dir);
+              allFilePaths.push(...filePaths);
+          }
+          const results = await searchEmbeddingsDistinct(query, localStorage, 5, allFilePaths);
+          return results;
+      }
+    })
+  }
+};
+
 
 function wrapStreamRsp(event: RunStreamEvent) {
   // console.log("Stream event: ", event.type);

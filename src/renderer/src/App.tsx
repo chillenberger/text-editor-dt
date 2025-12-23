@@ -1,7 +1,7 @@
 import FileTree from './components/file-tree';
 import { useState, useEffect, Dispatch, SetStateAction, useCallback, Children } from 'react';
 import { useManageFiles, ManagedFileSystem, useManageActiveFile, useVirtualDirectory } from './hooks/use-file-manager';
-import { getContentTypeFromPath } from '../../../src/lib/file';
+import { getContentTypeFromPath } from './lib/file';
 import { DisplayEditor, useTipTapMarkdownEditor } from './components/tiptap-editor/tiptap-templates/simple/simple-editor';
 import useCKHtmlEditor from '@renderer/components/ck-editor/ck-editor';
 import DisplayCKEditor from '@renderer/components/ck-editor/ck-editor-display';
@@ -15,6 +15,7 @@ import {
 } from "@fortawesome/free-regular-svg-icons";
 import {
   faLink,
+  faSearch,
   faX,
   faFolderPlus,
   faPlus,
@@ -23,6 +24,7 @@ import {
 import Band from './components/context-container/band';
 import ContextContainer from './components/context-container/context-container';
 import ChatArea from './components/chat-area';
+import { SearchEmbeddings } from './components/search';
 
 
 
@@ -34,6 +36,7 @@ function App(): React.JSX.Element {
   const [showFileTree, setShowFileTree] = useState(true);
   const [showURLs, setShowURLs] = useState(false);
   const [showActiveFile, setShowActiveFile] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
 
   useEffect(() => {
@@ -151,10 +154,14 @@ function App(): React.JSX.Element {
 
   return (
   <div className="w-screen h-screen flex justify-between">
+    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-5 ">
+      {showSearch && <SearchEmbeddings dirs={dirsPaths} />}
+    </div>
     <div className="flex flex-row h-full relative z-2 focus-within:z-4">
       <LeftNav className="flex flex-col gap-4 items-center p-1">
         <Toggle className="rounded-sm" onClick={() => setShowFileTree(!showFileTree) } color="blue" toggleState={showFileTree}><FontAwesomeIcon icon={faFile} /></Toggle>
         <Toggle className="rounded-sm" onClick={() => setShowURLs(!showURLs) } color="purple" toggleState={showURLs}><FontAwesomeIcon icon={faLink} /></Toggle>
+        <Toggle className="rounded-sm" onClick={() => setShowSearch(!showSearch) } color="purple" toggleState={showSearch}><FontAwesomeIcon icon={faSearch} /></Toggle>
       </LeftNav>
       <div className="relative">
         <div className="h-full p-4 gap-4 absolute flex flex-col">
@@ -217,7 +224,6 @@ function AddDirectory({path, setDirs, onSwitchActiveFile, onDeleteFile, onCreate
   const logger = useLogger();
 
   useEffect(() => {
-    console.log("Adding directory: ", dir.dir.title);
     let exists = false;
     setDirs(prev => {
       const index = prev.findIndex(d => d.dir.title === dir.dir.title);
@@ -235,7 +241,7 @@ function AddDirectory({path, setDirs, onSwitchActiveFile, onDeleteFile, onCreate
     }
   }, [])
 
-  return <FileTree pathTree={dir.dir} onFileChange={(path) => onSwitchActiveFile(path)} onFileCreate={(path) => onCreateFile(path)} onFileDelete={(path) => onDeleteFile(path)} onRemoveDir={() => handleRemoveDir(path)} />; 
+  return <FileTree pathTree={dir.dir} onFileChange={(path) => onSwitchActiveFile(path)} onFileCreate={(path) => onCreateFile(path)} onFileDelete={(path) => onDeleteFile(path)} onRemoveDir={() => handleRemoveDir(path)} onEmbedFileTree={dir.embedFileTree}/>; 
 }
 
 function DragAndDrop(props: {children: React.ReactNode, onAddDir: (path: string) => void}) {
@@ -285,3 +291,4 @@ function DragAndDrop(props: {children: React.ReactNode, onAddDir: (path: string)
     </div>
   )
 }
+

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 import { File, PathTree } from 'src/types';
-import { createFileInPathTree, deleteFileFromPathTree } from '../../../lib/file';
+import { createFileInPathTree, deleteFileFromPathTree } from '../lib/file';
 // import { flattenDir } from '@renderer/lib/file';
 import useLogger from '@renderer/hooks/use-logger';
  
@@ -24,6 +24,7 @@ export type ManagedFileSystem = {
   deleteFile: (path: string) => Promise<DirEditRsp>;
   addFile: (path: string, content: string) => Promise<DirEditRsp>;
   pullFileSystem: () => Promise<DirEditRsp>;
+  embedFileTree: () => Promise<void>;
 }
 
 function concatFilePath(folder: string, filePath: string): string {
@@ -113,6 +114,14 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
     return {nextDirState,  success}
   }
 
+  // Embed file tree for all files.
+  async function embedFileTree(): Promise<void> {
+    console.log("Embedding file tree for folder:", folder);
+    if ( folder ) {
+      await window.electron.ipcRenderer.invoke('embed-file-tree', folder);
+    }
+  }
+
   return {
     dir,
     setDir,
@@ -121,6 +130,7 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
     deleteFile,
     addFile,
     pullFileSystem,
+    embedFileTree,
   }
 }
 

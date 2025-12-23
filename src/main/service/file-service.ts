@@ -77,7 +77,7 @@ async function deleteFile(fullPath: string) {
   }
 }
 
-async function readFileContent(fullPath: string): Promise<string> {
+export async function readFileContent(fullPath: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     readFile(fullPath, (err, data) => {
       if (err) {

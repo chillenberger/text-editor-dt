@@ -1,21 +1,7 @@
 
-import { File, EditorTypes, PathTree } from '../types';
+import { File, EditorTypes, PathTree } from '../../../types';
 
 const { separator, dirname, basename, extname } = window.pathAPI;
-
-// function flattenDir(item: Dir | Doc, path: string[] = [], files: File[] = []): File[] {
-//   if( 'content' in item ) {
-//     files.push({path: [...path, item.title].join('/'), content: item.content as string})
-//   } else if ( 'children' in item) {
-//     path = [...path, item.title];
-//     for( const child of item.children) {
-//       const newFiles: File[] = flattenDir(child, path, files)
-//       files = newFiles;
-//     }
-//   }
-
-//   return files
-// }
 
 // function expandDir(db: File[]): Dir {
 //   const firstPath = db[0].path.split(separator);

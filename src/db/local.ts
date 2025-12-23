@@ -1,15 +1,14 @@
 import { app } from 'electron'
 import path from 'path'
 import Database from 'better-sqlite3'
-import sqlite_vec from 'sqlite-vec';
+import * as sqliteVec from 'sqlite-vec';
 
 
 interface EmbeddingRow {
     id: number;
     content_hash: string;
-    embedding_vector: Buffer;
+    embedding_vector: number[];
     chunk_index: number;
-    created_at: string;
     file_path: string | null;
 }
 
@@ -23,32 +22,26 @@ class Embeddings {
     setupTable(): void {
         try {
             this.db.exec(`
-                CREATE TABLE IF NOT EXISTS embeddings (
+                CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     content_hash TEXT NOT NULL,
-                    embedding_vector BLOB NOT NULL,
-                    chunk_index INTEGER NOT NULL DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    file_path TEXT
-                );
+                    file_path TEXT,
+                    chunk_index FLOAT,
+                    embedding_vector float[1536]
+                )
             `)
-            // Best-effort migrate older DBs missing chunk_index column
-            try {
-                this.db.exec('ALTER TABLE embeddings ADD COLUMN chunk_index INTEGER NOT NULL DEFAULT 0');
-            } catch (migrateError) {
-                // Ignore if column already exists
-            }
-            this.db.exec('CREATE INDEX IF NOT EXISTS idx_embeddings_file_path_chunk ON embeddings(file_path, chunk_index)');
         } catch (error) {
             console.error('Failed to setup embeddings table:', error)
             throw error
         }
     }
 
-    addEmbedding(content_hash: string, embedding_vector: Buffer, file_path: string, chunk_index: number): number {
+    addEmbedding(content_hash: string, embedding_vector: number[], file_path: string, chunk_index: number): number {
+        // Bind as a single blob so vec0 sees one vector, not 1536 parameters
+        const vectorBuffer = Buffer.from(new Float32Array(embedding_vector).buffer)
         try {
-            const stmt = this.db.prepare('INSERT INTO embeddings (content_hash, embedding_vector, file_path, chunk_index) VALUES (?, ?, ?, ?)')
-            const info = stmt.run(content_hash, embedding_vector, file_path, chunk_index)
+            const stmt = this.db.prepare('INSERT INTO embeddings (content_hash, file_path, chunk_index, embedding_vector) VALUES (?, ?, ?, ?)')
+            const info = stmt.run(content_hash, file_path, chunk_index, vectorBuffer)
             return Number(info.lastInsertRowid)
         } catch (error) {
             console.error('Failed to add embedding:', error)
@@ -76,13 +69,15 @@ class Embeddings {
         }
     }
 
-    insertMany(items: Array<{content_hash: string, embedding_vector: Buffer, file_path: string, chunk_index: number}>): number[] {
+    insertMany(items: Array<{content_hash: string, embedding_vector: number[], file_path: string, chunk_index: number}>): number[] {
         try {
             const ids: number[] = []
             const transaction = this.db.transaction(() => {
-                const stmt = this.db.prepare('INSERT INTO embeddings (content_hash, embedding_vector, file_path, chunk_index) VALUES (?, ?, ?, ?)')
+                const stmt = this.db.prepare('INSERT INTO embeddings (content_hash, file_path, chunk_index, embedding_vector) VALUES (?, ?, ?, ?)')
                 for (const item of items) {
-                    const info = stmt.run(item.content_hash, item.embedding_vector, item.file_path, item.chunk_index)
+                    const vectorBuffer = Buffer.from(new Float32Array(item.embedding_vector).buffer)
+                    const chunkIndexInt = Math.trunc(item.chunk_index)
+                    const info = stmt.run(item.content_hash, item.file_path, chunkIndexInt, vectorBuffer)
                     ids.push(Number(info.lastInsertRowid))
                 }
             })
@@ -97,7 +92,7 @@ class Embeddings {
     updateChunkIndex(id: number, chunk_index: number): number {
         try {
             const stmt = this.db.prepare('UPDATE embeddings SET chunk_index = ? WHERE id = ?')
-            const info = stmt.run(chunk_index, id)
+            const info = stmt.run(Math.trunc(chunk_index), id)
             return info.changes
         } catch (error) {
             console.error('Failed to update embedding chunk_index:', error)
@@ -112,6 +107,41 @@ class Embeddings {
             return info.changes
         } catch (error) {
             console.error('Failed to delete embedding:', error)
+            throw error
+        }
+    }
+
+    getTopKSimilarEmbeddings(embedding_vector: number[], topK: number, filePaths: string[]): Array<{file_path: string; score: number}> {
+        const vectorBuffer = Buffer.from(new Float32Array(embedding_vector).buffer)
+        try {
+            const stmt = this.db.prepare(`
+                SELECT file_path, vec_distance_cosine(embedding_vector, ?) AS score
+                FROM embeddings
+                WHERE file_path IN (${filePaths.map(() => '?').join(',')})
+                ORDER BY score ASC
+                LIMIT ?
+            `)
+            return stmt.all(vectorBuffer, ...filePaths, topK) as Array<{file_path: string; score: number}>
+        } catch (error) {
+            console.error('Failed to get top K similar embeddings:', error)
+            throw error
+        }
+    }
+
+    getTopKDistinctFilePaths(embedding_vector: number[], topK: number, filePaths: string[]): Array<{file_path: string; score: number}> {
+        const vectorBuffer = Buffer.from(new Float32Array(embedding_vector).buffer)
+        try {
+            const stmt = this.db.prepare(`
+                SELECT file_path, MIN(vec_distance_cosine(embedding_vector, ?)) AS score
+                FROM embeddings
+                WHERE file_path IN (${filePaths.map(() => '?').join(',')})
+                GROUP BY file_path
+                ORDER BY score ASC
+                LIMIT ?
+            `)
+            return stmt.all(vectorBuffer, ...filePaths, topK) as Array<{file_path: string; score: number}>
+        } catch (error) {
+            console.error('Failed to get top K distinct file paths:', error)
             throw error
         }
     }
@@ -203,17 +233,18 @@ class LocalStorage {
     constructor() {
         const dbPath = path.join(app.getPath('userData'), 'app_database.sqlite3')
         this.db = new Database(dbPath);
-        this.db.pragma("journal_mode = WAL")
+        this.db.pragma("journal_mode = WAL");
         this.embeddings = new Embeddings(this.db);
         this.userActions = new UserActions(this.db);
+        this.initialize();
     }
-
+    
     async initialize(): Promise<void> {
         if (this.initialized) return;
         try {
+            sqliteVec.load(this.db);
             this.embeddings.setupTable();
             this.userActions.setupTable();
-            sqlite_vec.load(this.db);
             this.initialized = true;
         } catch (error) {
             console.error('Failed to initialize database:', error)

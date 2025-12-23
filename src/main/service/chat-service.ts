@@ -3,27 +3,32 @@
 import { Conversation, ChatResponse, ChatSchema, ChatLog, ChatActions} from '../../types';
 import { MyAgent } from '../../lib/openai';
 import { IpcMainEvent } from 'electron';
+import LocalStorage from '../../db/local';
 
 let myAgentInstance: MyAgent | null = null;
+let localStorage: LocalStorage | null = null;
 
-function initializeAgent(projectName: string, folders: string[], agentId: string) {
+function initializeAgent(projectName: string, folders: string[], agentId: string, localStorageDB: LocalStorage) {
   console.log('initializing Agent')
-  const myAgent = new MyAgent(projectName, folders, agentId);
+  const myAgent = new MyAgent(projectName, folders, agentId, localStorageDB);
   myAgentInstance = myAgent;
+  localStorage = localStorageDB;
 }
 
 async function chatStream(event: IpcMainEvent, userQuery: string, previousResponseId: string | null, folders: string[], chatSessionFromForm: string, timeLastRequestFromForm: string, agentId: string) {
+  if (!localStorage) {
+    throw new Error("LocalStorage not initialized in chatStream");
+  }
+
   try {
     if (!myAgentInstance) {
       console.log("Creating new agent instance in chatStream");
-      myAgentInstance = new MyAgent("test stream", folders, agentId);
+      myAgentInstance = new MyAgent("test stream", folders, agentId, localStorage);
     } else {
       console.log("Using existing agent instance in chatStream");
     }
 
     const query = JSON.stringify({"userQuery": userQuery});
-
-    console.log("Constructed agent query for stream:", query);
 
     const responseStream = await myAgentInstance.runStream(query, previousResponseId);
 

@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, MenuItem } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import dotenv from 'dotenv'
@@ -8,13 +9,19 @@ import { initializeAgent, chatStream } from './service/chat-service'
 import LocalStorage from '../db/local';
 import setUpLoggerHandlers from './service/logger-service'
 import { dialog } from 'electron';
-import { updateEmbeddingsForFile } from '../lib/chuncker';
+import { updateEmbeddingsForFile, searchEmbeddingsDistinct } from '../lib/embeddings';
 import { getFileSystem } from './service/file-service';
+import { flattenPathTree } from '../lib/paths';
+import { readFileContent } from './service/file-service'
 
 dotenv.config()
 
 function createWindow(): void {
   // Create the browser window.
+  const preloadPath = existsSync(join(__dirname, '../preload/index.js'))
+    ? join(__dirname, '../preload/index.js')
+    : join(__dirname, '../preload/index.mjs')
+
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -22,7 +29,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       sandbox: false
     }
   })
@@ -43,12 +50,8 @@ function createWindow(): void {
     label: 'Save File',
     click: () => mainWindow.webContents.send('main-request-file-state'),
     accelerator: 'CommandOrControl+S'
-    }, 
-    // {
-    //   label: 'embed all files',
-    //   click: () => update,
-    // }
-  ])
+  }])
+
 
   menu.append(new MenuItem({ label: 'Custom Menu', submenu }))
   Menu.setApplicationMenu(menu)
@@ -106,6 +109,52 @@ app.whenReady().then(() => {
 
     return localStorage.userActions.getAllExampleEntries();
   })
+
+
+  ipcMain.handle('embed-file-tree', async (_, folderPath: string) => {
+    console.log("Embedding file tree for folder: ", folderPath);
+    const dir = await getFileSystem(folderPath);
+    const filePaths= flattenPathTree(dir, folderPath);
+    for (const path of filePaths) {
+      const content = await readFileContent(path);
+      await updateEmbeddingsForFile(path, content, localStorage);
+    }
+  });
+
+  ipcMain.on('chat-stream', async (event, userQuery: string, previousResponseId: string | null, folders: string[], chatSessionFromForm: string, timeLastRequestFromForm: string, agentId: string) => {
+    const actionLogs = localStorage.userActions.getActionLogsBySessionAndCreatedAt(chatSessionFromForm, timeLastRequestFromForm);
+    console.log("actionLogs: ", actionLogs);
+    
+    // Re-embed changed files before sending request. 
+    for (const log of actionLogs) {
+      if (log.action_type === 'file-updated') {
+        if (!log.details) continue;
+        const details = JSON.parse(log.details);
+        const filePath = details.filePath;
+        const content = details.content;
+        console.log(`Updating embeddings for file: ${filePath}`);
+        await updateEmbeddingsForFile(filePath, content, localStorage);
+      }
+    }
+
+    return await chatStream(event, userQuery, previousResponseId, folders, chatSessionFromForm, timeLastRequestFromForm, agentId);
+  })
+
+  ipcMain.handle('search-embeddings', async (_, query: string, topK: number, dirs: string[]) => {
+    const allFilePaths: string[] = [];
+    for (const dir of dirs) {
+      const dirTree = await getFileSystem(dir);
+      const filePaths = flattenPathTree(dirTree, dir);
+      allFilePaths.push(...filePaths);
+    }
+    const results = await searchEmbeddingsDistinct(query, localStorage, topK, allFilePaths);
+    console.log("search results: ", results);
+    return results;
+  });
+
+  ipcMain.handle('initialize-agent', async (_, projectName: string, folders: string[], agentId: string) => {
+    await initializeAgent(projectName, folders, agentId, localStorage);
+  })
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -127,41 +176,3 @@ ipcMain.handle('test-func-a', async (_, data) => {
 
   return 'from the main process';
 })
-
-
-// ipcMain.on('ping', () => console.log('pong'))
-
-ipcMain.handle('initialize-agent', async (_, projectName: string, folders: string[], agentId: string) => {
-  await initializeAgent(projectName, folders, agentId);
-})
-
-ipcMain.on('chat-stream', async (event, userQuery: string, previousResponseId: string | null, folders: string[], chatSessionFromForm: string, timeLastRequestFromForm: string, agentId: string) => {
-  // Re-embed changed files before sending request. 
-  const actionLogs = localStorage.userActions.getActionLogsBySessionAndCreatedAt(chatSessionFromForm, timeLastRequestFromForm);
-  console.log("actionLogs: ", actionLogs);
-
-  for (const log of actionLogs) {
-    if (log.action_type === 'file-updated') {
-      const details = JSON.parse(log.details);
-      const filePath = details.filePath;
-      const content = details.content;
-      console.log(`Updating embeddings for file: ${filePath}`);
-      await updateEmbeddingsForFile(filePath, content, localStorage);
-    }
-  }
-
-  return await chatStream(event, userQuery, previousResponseId, folders, chatSessionFromForm, timeLastRequestFromForm, agentId);
-})
-
-ipcMain.handle('update-embeddings-for-file', async (_, filePath: string, content: string) => {
-  await updateEmbeddingsForFile(filePath, content, localStorage);
-})
-
-async function updateEmbeddingForAllFiles(filePaths: string[]) {
-  for (const filePath of filePaths) {
-    const dir = await getFileSystem(filePath);
-    // let files = flattenDir(dir);
-
-    
-  }
-}

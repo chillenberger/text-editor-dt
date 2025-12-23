@@ -21,7 +21,7 @@
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "rebuild": "npm rebuild @parcel/watcher better-sqlite3 --runtime=electron --target=$(npx electron --version | tr -d v) --dist-url=https://electronjs.org/headers --arch=$(uname -m)",
-    "chuncker": "node script/chuncker.js"
+    "chuncker": "electron script/chuncker.js"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
