@@ -1,18 +1,19 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, MenuItem } from 'electron'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, readFile } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import dotenv from 'dotenv'
 import setUpFileSystemHandlers from './service/file-service'
-import { initializeAgent, chatStream } from './service/chat-service'
+import { initializeAgent, chatStream, convertToTemplate } from './service/chat-service'
 import LocalStorage from '../db/local';
 import setUpLoggerHandlers from './service/logger-service'
 import { dialog } from 'electron';
 import { updateEmbeddingsForFile, searchEmbeddingsDistinct } from '../lib/embeddings';
 import { getFileSystem } from './service/file-service';
 import { flattenPathTree } from '../lib/paths';
-import { readFileContent } from './service/file-service'
+import { readFileContent, addFile, exportHtmlToPdf, deleteFile } from './service/file-service';
+import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 
 dotenv.config()
 
@@ -78,7 +79,16 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (is.dev) {
+    try {
+      const name = await installExtension(REACT_DEVELOPER_TOOLS)
+      console.log(`React DevTools installed: ${name}`)
+    } catch (err) {
+      console.error('Failed to install React DevTools:', err)
+    }
+  }
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
   const localStorage = new LocalStorage();
@@ -93,9 +103,6 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
   createWindow()
 
   app.on('activate', function () {
@@ -104,17 +111,10 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 
-  ipcMain.handle('test-func', (_, data) => {
-    console.log("data sent: ", data);
-
-    return localStorage.userActions.getAllExampleEntries();
-  })
-
-
   ipcMain.handle('embed-file-tree', async (_, folderPath: string) => {
-    console.log("Embedding file tree for folder: ", folderPath);
     const dir = await getFileSystem(folderPath);
     const filePaths= flattenPathTree(dir, folderPath);
+
     for (const path of filePaths) {
       const content = await readFileContent(path);
       await updateEmbeddingsForFile(path, content, localStorage);
@@ -123,7 +123,6 @@ app.whenReady().then(() => {
 
   ipcMain.on('chat-stream', async (event, userQuery: string, previousResponseId: string | null, folders: string[], chatSessionFromForm: string, timeLastRequestFromForm: string, agentId: string) => {
     const actionLogs = localStorage.userActions.getActionLogsBySessionAndCreatedAt(chatSessionFromForm, timeLastRequestFromForm);
-    console.log("actionLogs: ", actionLogs);
     
     // Re-embed changed files before sending request. 
     for (const log of actionLogs) {
@@ -138,6 +137,20 @@ app.whenReady().then(() => {
     }
 
     return await chatStream(event, userQuery, previousResponseId, folders, chatSessionFromForm, timeLastRequestFromForm, agentId);
+  })
+
+  ipcMain.handle('template-convert', async (_, markdownPath: string, templateHtmlPath: string) => {
+    const markdownContent = await readFileContent(markdownPath);
+    const templateHtml = await readFileContent(templateHtmlPath);
+
+    const res = await convertToTemplate(markdownContent, templateHtml);
+
+    const tempPath = app.getPath('userData') + "/converted_" + Date.now() + ".html";
+    addFile(tempPath, res);
+    exportHtmlToPdf(templateHtmlPath, res);
+    deleteFile(tempPath);
+
+    return res;
   })
 
   ipcMain.handle('search-embeddings', async (_, query: string, topK: number, dirs: string[]) => {
@@ -166,13 +179,4 @@ app.on('window-all-closed', () => {
   }
 })
 
-ipcMain.handle('test-func-a', async (_, data) => {
-  console.log('Test function called from renderer process');
-  console.log("data: ", data);
-  
-  const folder = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
-  console.log("folder: ", folder);
 
-
-  return 'from the main process';
-})

@@ -1,17 +1,27 @@
-'use server'
-
 import { Conversation, ChatResponse, ChatSchema, ChatLog, ChatActions} from '../../types';
-import { MyAgent } from '../../lib/openai';
 import { IpcMainEvent } from 'electron';
 import LocalStorage from '../../db/local';
+import { FileServer } from '../../lib/agent-tools/servers';
+import { generateGetRelevantFilesTool } from '../../lib/agent-tools/tools';
+import { ResumeAssistant, GeneralAssistant, TemplateAssistant } from '../../lib/agents/assistant';
+import { AgentBase } from '../../lib/agents/base-assistant';
 
-let myAgentInstance: MyAgent | null = null;
+let myAgentInstance: AgentBase | null = null;
 let localStorage: LocalStorage | null = null;
 
+function createAgent(agentId: string, folders: string[], localStorageDB: LocalStorage): AgentBase {
+  const servers = [FileServer(folders)];
+  const tools = [generateGetRelevantFilesTool(folders, localStorageDB)];
+  if (agentId === 'a1') {
+    return new ResumeAssistant(servers, tools);
+  }
+  return new GeneralAssistant(servers, tools);
+}
+
 function initializeAgent(projectName: string, folders: string[], agentId: string, localStorageDB: LocalStorage) {
-  console.log('initializing Agent')
-  const myAgent = new MyAgent(projectName, folders, agentId, localStorageDB);
-  myAgentInstance = myAgent;
+  console.log('initializing Agent');
+  const agent = createAgent(agentId, folders, localStorageDB);
+  myAgentInstance = agent;
   localStorage = localStorageDB;
 }
 
@@ -23,7 +33,7 @@ async function chatStream(event: IpcMainEvent, userQuery: string, previousRespon
   try {
     if (!myAgentInstance) {
       console.log("Creating new agent instance in chatStream");
-      myAgentInstance = new MyAgent("test stream", folders, agentId, localStorage);
+      myAgentInstance = createAgent(agentId, folders, localStorage);
     } else {
       console.log("Using existing agent instance in chatStream");
     }
@@ -47,6 +57,20 @@ async function chatStream(event: IpcMainEvent, userQuery: string, previousRespon
   }
 }
 
+
+async function convertToTemplate(markdownContent: string, templateHtml: string): Promise<string> {
+  const templateAgent = new TemplateAssistant();
+
+  const query = JSON.stringify({"markdown": markdownContent, "template": templateHtml});
+  
+  const rsp = await templateAgent.run(query, null);
+  console.log("Template agent response: ", rsp);
+  if (rsp && rsp.finalOutput) {
+    return rsp.finalOutput;
+  } else {
+    throw new Error("No response from template agent");
+  }
+}
 // async function getChatLog(projectName: string): Promise<Conversation[]> {
 //   const chatLogs: ChatLog[] = await getChatLogsByProject(projectName);
 //   return chatLogs.map(log => ({
@@ -65,7 +89,7 @@ async function chatStream(event: IpcMainEvent, userQuery: string, previousRespon
 
 // export {getChatLog, initializeAgent, chatStream};
 
-export {initializeAgent, chatStream};
+export {initializeAgent, chatStream, convertToTemplate};
 
 const testResponse = {
   response: {

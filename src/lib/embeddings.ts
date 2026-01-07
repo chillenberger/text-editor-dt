@@ -13,8 +13,6 @@ export async function chunkDocument(text: string): Promise<Chunk[]> {
   });
 
   const chunks = await chunker.chunk(text);
-
-  console.log("Chunks: ", chunks);
   
   return chunks;
 }
@@ -103,5 +101,6 @@ export async function searchEmbeddings(query: string, localStorage: any, topK: n
 // Distinct file paths only
 export async function searchEmbeddingsDistinct(query: string, localStorage: any, topK: number = 5, filePaths: string[]): Promise<Array<{file_path: string; score: number}>> {
   const embedding_vector = await generateEmbeddingVector(query);
+  console.log("Searching embeddings distinct for query: ", query);
   return localStorage.embeddings.getTopKDistinctFilePaths(embedding_vector, topK, filePaths);
 }

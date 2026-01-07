@@ -64,7 +64,7 @@ class Embeddings {
             const stmt = this.db.prepare('SELECT * FROM embeddings WHERE file_path = ? ORDER BY chunk_index ASC')
             return stmt.all(file_path) as EmbeddingRow[]
         } catch (error) {
-            console.error('Failed to get embeddings by file path:', error)
+            console.error('Failed to get embeddings by file path:', file_path, error)
             throw error
         }
     }
@@ -128,7 +128,7 @@ class Embeddings {
         }
     }
 
-    getTopKDistinctFilePaths(embedding_vector: number[], topK: number, filePaths: string[]): Array<{file_path: string; score: number}> {
+    getTopKDistinctFilePaths(embedding_vector: number[], topK: number, filePaths: string[], maxScore: number = 0.5): Array<{file_path: string; score: number}> {
         const vectorBuffer = Buffer.from(new Float32Array(embedding_vector).buffer)
         try {
             const stmt = this.db.prepare(`
@@ -136,10 +136,11 @@ class Embeddings {
                 FROM embeddings
                 WHERE file_path IN (${filePaths.map(() => '?').join(',')})
                 GROUP BY file_path
+                HAVING score <= ?
                 ORDER BY score ASC
                 LIMIT ?
             `)
-            return stmt.all(vectorBuffer, ...filePaths, topK) as Array<{file_path: string; score: number}>
+            return stmt.all(vectorBuffer, ...filePaths, maxScore, topK) as Array<{file_path: string; score: number}>
         } catch (error) {
             console.error('Failed to get top K distinct file paths:', error)
             throw error
@@ -194,7 +195,7 @@ class UserActions {
 
     getActionLogsBySessionAndCreatedAt(sessionId: string, createdAt: string): UserActionRow[] {
         try {
-            const stmt = this.db.prepare('SELECT action_type, details, created_at FROM user_actions WHERE session_id = ? AND created_at >= ? ORDER BY created_at ASC')
+            const stmt = this.db.prepare('SELECT action_type, details, created_at FROM user_actions WHERE session_id = ? AND created_at >= DATETIME(?) ORDER BY created_at ASC')
             return stmt.all(sessionId, createdAt) as UserActionRow[]
         } catch (error) {
             console.error('Failed to get action logs:', error)

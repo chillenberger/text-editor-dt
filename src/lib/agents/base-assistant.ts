@@ -1,40 +1,13 @@
-import { Agent, run, MCPServerStdio, RunStreamEvent, setDefaultOpenAIKey, MCPServerStreamableHttp, tool } from '@openai/agents';
-import { getFileSystem } from '../main/service/file-service';
-import { flattenPathTree } from '../lib/paths';
-import { searchEmbeddingsDistinct } from './embeddings';
-import { z } from 'zod';
-import LocalStorage from '../db/local';
+import { Agent, run, RunStreamEvent, setDefaultOpenAIKey} from '@openai/agents';
+import { Server } from '../agent-tools/servers';
 
-const GENERAL_SYSTEM_PROMPT = `
+export class AgentBase {
+  general_system_prompt: string = `
 # General Instructions
 - You live inside a text editor tool that I have built.  This tool is similar to vscode but it is not for writing code, and is focused on knowledge work.
-`
+`;
 
-const FILE_SYSTEM_PROMPT = `
-# File System Instructions
-- You have access to the filesystem via tools.
-- You have access to the get_relevant_files tool. You can create a query for information you need and this tool will return the top 5 files that has this information.
-- If you are unable to find any files, you can say so instead of assuming they exist.
-- If a file changes during our conversation, review it and adjust your recommendations accordingly.
-- You can read, write, create, and delete files as needed.
-- When reading files, only read what you need to answer the user's questions.
-- When writing files, ensure they are well-formatted and adhere to best practices.
-- Only produce files that are markdown or html, never ask if I want other file types.
-`
-
-const RESUME_ASSISTANT_PROMPT = `
-# Your Role
-You are a professional career coach that helps me create job application materials.
-You can suggest information that would be useful in helping me get hired.
-You have discussions with me and help me create and improve job application materials.
-`
-
-const GENERAL_ASSISTANT_PROMPT = `
-# Your Role
-You are an general knowledge assistant that helps me with a variety of tasks.
-`
-
-const VOICE_AND_TONE_PROMPT = `
+  voice_and_tone_prompt: string = `
 # Writing Style
 ## Purpose
 Use this template to produce clear, calm, and persuasive writing that mirrors the samples.
@@ -92,100 +65,41 @@ Lead with a thesis, develop it with concrete examples or contrasts, use at most 
 - Simple, grounded takeaway in the final sentence
 `
 
-const TESTING_PROMPT = `
-# Role
-You are a helpful assistant that helps me navigate my website.  
-You have access to the client state via a tool called getClientState which returns a JSON string. 
-The return JSON string has the following format:
-{
-  "current_file": "string", // the file currently open in the editor
-  "cursor_position": number // the current cursor position in the file
-}
-`
+  mcpServers: Array<Server> = [];
+  tools: any[] = []
+  private agent: Agent | null = null;
 
-class MyAgent {
-  private agent: Agent;
-  private agentId: string;
-  private mcpServer: MCPServerStdio | null = null;
-  private folders: string[] = [];
-  private localStorage: LocalStorage;
-  projectName: string;
-
-  constructor(projectName: string, folders: string[], agentId: string = "a0", localStorageDB: LocalStorage) {
-    console.log("Initializing MCP server for project:", folders, "with agentId:", agentId);
-
+  constructor(mcpServers: Array<Server> = [], tools: any[] = []) {
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
       throw new Error("OPENAI_API_KEY is not set. Provide it via environment at launch time.");
     }
     setDefaultOpenAIKey(import.meta.env.VITE_OPENAI_API_KEY);
 
-    this.folders = folders;
-
-    this.projectName = projectName;
-    this.mcpServer = folders.length > 0 ? this.CreateServer(folders) : null;
-    this.agentId = agentId;
-    this.localStorage = localStorageDB;
-
-    this.agent = this.CreateAgent(this.mcpServer);
-    this.mcpServer?.connect();
+    this.mcpServers = mcpServers;
+    this.tools = tools;
   }
 
-  destroy() {
-    console.log("Closing MCP server");
-    this.mcpServer?.close();
+  setAgent(agent: Agent) {
+    this.agent = agent;
   }
 
-  private PromptConstructor(agentId: string): string {
-    let prompt = GENERAL_SYSTEM_PROMPT;
-    if ( agentId === "a1" ) {
-      prompt = RESUME_ASSISTANT_PROMPT + prompt;
-    } else {
-      prompt = GENERAL_ASSISTANT_PROMPT + prompt;
+  constructPrompt(additionalPrompts: string[]): string {
+    let prompt = this.general_system_prompt;
+    for ( const p of additionalPrompts ) {
+      prompt += p + "\n";
     }
-    prompt = prompt + FILE_SYSTEM_PROMPT + VOICE_AND_TONE_PROMPT;
-    console.log("Constructed prompt: ", prompt);
-    return prompt;
+
+    for ( const server of this.mcpServers ) {
+      prompt += server.instructionsPrompt + "\n";
+    }
+    return prompt + this.voice_and_tone_prompt;
   }
 
-  private CreateAgent(mcpServer: MCPServerStdio | null): Agent {
-    // const HttpMcpServer = new MCPServerStreamableHttp({
-    //   url: 'http://localhost:8000',
-    //   name: 'Client State MCP Server',
-    // });
-
-    const result =  new Agent({
-      name: 'FS MCP Assistant',
-      model: 'gpt-5',
-      instructions: this.PromptConstructor(this.agentId),
-      mcpServers: mcpServer ? [mcpServer] : [],
-      tools: [this.generateTools()],
-    });
-
-    // HttpMcpServer.connect();
-    // const result =  new Agent({
-    //   name: 'FS MCP Assistant',
-    //   model: 'gpt-5',
-    //   instructions: TESTING_PROMPT,
-    //   mcpServers: [HttpMcpServer]
-    // });
-    return result;
-  }
-
-  private CreateServer(folders: string[]) {
-    const projectDirs = folders;
-
-    if ( this.mcpServer ) this.destroy();
-
-    const server = new MCPServerStdio({
-      name: 'Filesystem MCP Server, via npx',
-      fullCommand: `npx -y ${import.meta.env.VITE_MCP_SERVER_PATH} ${projectDirs.join(' ')}`,
-    });
-    server.connect();
-    return server
-  };
-  
   async runStream(userQuery: string, previousResponseId: string | null) {
     console.log("Running agent with query (stream):", userQuery);
+    if ( !this.agent ) {
+      throw new Error("Agent not initialized.");
+    }
 
     try {
       const streamedResult = await run(this.agent, userQuery, { previousResponseId: previousResponseId ? previousResponseId : undefined, stream: true, maxTurns: 20 });
@@ -205,34 +119,29 @@ class MyAgent {
           yield encoder.encode(finalRsp.length + ":" + finalRsp);
         }
       }
-     
+      
       return makeIterator();
     } catch (error) {
       console.error("Error during agent runStream:", error);
     }
+    return undefined;
   }
 
+  async run(userQuery: string, previousResponseId: string | null) {
+    console.log("Running agent with query:", userQuery);
+    if ( !this.agent ) {
+      throw new Error("Agent not initialized.");
+    }
 
-  generateTools() {
-    const folders = this.folders;
-    const localStorage = this.localStorage;
-    return tool({
-      name: 'get_relevant_files',
-      description: 'Get the top 5 relevant file paths based on a query.',
-      parameters: z.object({ query: z.string() }),
-      async execute({ query }) {
-          const allFilePaths: string[] = [];
-          for (const dir of folders) {
-              const dirTree = await getFileSystem(dir);
-              const filePaths = flattenPathTree(dirTree, dir);
-              allFilePaths.push(...filePaths);
-          }
-          const results = await searchEmbeddingsDistinct(query, localStorage, 5, allFilePaths);
-          return results;
-      }
-    })
+    try {
+      const result = await run(this.agent, userQuery, { previousResponseId: previousResponseId ? previousResponseId : undefined, maxTurns: 20 });
+      return result;
+    } catch (error) {
+      console.error("Error during agent run:", error);
+    }
+    return undefined;
   }
-};
+}
 
 
 function wrapStreamRsp(event: RunStreamEvent) {
@@ -273,5 +182,3 @@ function wrapStreamRsp(event: RunStreamEvent) {
 
   return null;
 }
-
-export { MyAgent };

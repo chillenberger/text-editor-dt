@@ -22,6 +22,8 @@ $ npm install
 $ npm run dev
 ```
 
+to get react dev tools working, after the app is loaded open the developer tools, restart the app using ```ctrl+r```
+
 ### Build
 
 ```bash

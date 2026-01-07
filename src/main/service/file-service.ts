@@ -56,7 +56,7 @@ export async function getFileSystem(folder: string): Promise<PathTree> {
   });
 }
 
-async function addFile(fullPath: string, content: string) {
+export async function addFile(fullPath: string, content: string) {
   try {
     const dirName = path.dirname(fullPath);
     if (!existsSync(dirName)) {
@@ -69,7 +69,7 @@ async function addFile(fullPath: string, content: string) {
   }
 }
 
-async function deleteFile(fullPath: string) {
+export async function deleteFile(fullPath: string) {
   try {
     unlinkSync(fullPath);
   } catch (error) {
@@ -97,7 +97,7 @@ async function updateFile(path: string, content: string) {
   }
 }
 
-async function exportHtmlToPdf(htmlPath: string, htmlContent: string) {
+export async function exportHtmlToPdf(htmlPath: string, htmlContent: string) {
   const tempFolder = app.getPath('userData');
   const desktopPath = app.getPath('desktop');
   
@@ -149,6 +149,11 @@ export default function setUpFileSystemHandlers() {
 
   ipcMain.handle('select-folder', async (_, projectName: string) => {
       const folder = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
+      return folder;
+  })
+
+    ipcMain.handle('select-file', async () => {
+      const folder = await dialog.showOpenDialog({ properties: ['openFile'] });
       return folder;
   })
 

@@ -5,21 +5,22 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { File, PathTree } from 'src/types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface FileTreeProps {
   pathTree: PathTree;
-  path?: string;
+  rootPath: string;
   onFileChange: (path: string) => void;
   onFileExport?: (path: string) => void;
   onFileDelete?: (path: string) => void;
   onFileSetAsContext?: (path: string) => void;
-  onRemoveDir: () => void;
+  onRemoveDir?: () => void;
   onFileCreate: (path: string, content: string) => void;
   onEmbedFileTree?: () => Promise<void>;
 }
 
-export default function FileTree({ 
+export default function FileTree({
+  rootPath,
   pathTree,
   onFileChange,
   onFileExport, 
@@ -29,46 +30,39 @@ export default function FileTree({
   onFileCreate,
   onEmbedFileTree
 }: FileTreeProps) {
-  const [showFileForm, setShowFileForm] = useState(false);
-
-  async function handleCreateFile(event: React.FormEvent<HTMLFormElement>) {
+  
+  const handleCreateFile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setShowFileForm(false);
 
     const formData = new FormData(event.currentTarget);
-
     const path = formData.get('path') as string;
     const title = formData.get('title') as string;
-
+    
     event.currentTarget.reset();
-
-    let newFile: File | undefined;
-
-    newFile = newFile ? newFile : {path: `${path}/${title}`, content: 'Add new content here!'}
-    onFileCreate(newFile.path, newFile.content);
-  }
+    
+    onFileCreate(`${path}/${title}`, 'Add new content here!');
+  };
 
   return (
-    <>
-      <RecurseFileTree
-        pathTree={pathTree}
-        path={pathTree.title}
-        onFileChange={onFileChange}
-        onFileExport={onFileExport}
-        onFileDelete={onFileDelete}
-        onFileSetAsContext={onFileSetAsContext}
-        onRemoveDir={onRemoveDir}
-        handleCreateFile={handleCreateFile}
-        onEmbedFileTree={onEmbedFileTree}
-      />
-    </>
-    
-  )
+    <RecurseFileTree
+      pathTree={pathTree}
+      path={pathTree.title}
+      rootPath={rootPath}
+      onFileChange={onFileChange}
+      onFileExport={onFileExport}
+      onFileDelete={onFileDelete}
+      onFileSetAsContext={onFileSetAsContext}
+      onRemoveDir={onRemoveDir}
+      handleCreateFile={handleCreateFile}
+      onEmbedFileTree={onEmbedFileTree}
+    />
+  );
 }
 
-function RecurseFileTree({
+const RecurseFileTree = ({
   pathTree,
   path,
+  rootPath,
   onFileChange,
   onFileExport, 
   onFileDelete, 
@@ -79,140 +73,305 @@ function RecurseFileTree({
 }: {
   pathTree: PathTree;
   path?: string;
+  rootPath: string;
   onFileChange: (path: string) => void;
   onFileExport?: (path: string) => void;
   onFileDelete?: (path: string) => void;
   onFileSetAsContext?: (path: string) => void;
   onRemoveDir?: () => void;
   handleCreateFile: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
-  onEmbedFileTree?: () => void;
-}) {
-
+  onEmbedFileTree?: () => Promise<void>;
+}) => {
   return (
     <div className="flex flex-col gap-1">
-      <FolderComponent pathTree={pathTree} path={path || ''} handleCreateFile={handleCreateFile} onFileDelete={onFileDelete} onRemoveDir={onRemoveDir} onEmbedFileTree={onEmbedFileTree} />
-      {pathTree.children && pathTree.children.map((item, key) => 
-            {
-              const currentPath = path ? path + '/' + item.title : item.title;
-            return (
-            <div key={key} className="ml-4" attr-data={currentPath}>
-              {item.pathType === 'file' && <FileComponent item={item} currentPath={currentPath} onFileChange={onFileChange} onFileExport={onFileExport} onFileDelete={onFileDelete} onFileSetAsContext={onFileSetAsContext}/>}
-              {item.pathType === 'dir' && (
-                <RecurseFileTree
-                  pathTree={item}
-                  path={currentPath}
-                  onFileChange={onFileChange}
-                  onFileExport={onFileExport}
-                  onFileDelete={onFileDelete}
-                  onFileSetAsContext={onFileSetAsContext}
-                  handleCreateFile={handleCreateFile}
-                />
-              )}
-            </div>)}
-        )}
+      <FolderComponent 
+        pathTree={pathTree} 
+        path={path || ''} 
+        handleCreateFile={handleCreateFile} 
+        onFileDelete={onFileDelete} 
+        onRemoveDir={onRemoveDir} 
+        onEmbedFileTree={onEmbedFileTree} 
+      />
+      {pathTree.children?.map((item) => {
+        const currentPath = path ? `${path}/${item.title}` : item.title;
+        return (
+          <div key={item.title} className="ml-4">
+            {item.pathType === 'file' ? (
+              <FileComponent 
+                item={item} 
+                currentPath={currentPath} 
+                rootPath={rootPath} 
+                onFileChange={onFileChange} 
+                onFileExport={onFileExport} 
+                onFileDelete={onFileDelete} 
+                onFileSetAsContext={onFileSetAsContext}
+              />
+            ) : (
+              <RecurseFileTree
+                pathTree={item}
+                path={currentPath}
+                rootPath={rootPath}
+                onFileChange={onFileChange}
+                onFileExport={onFileExport}
+                onFileDelete={onFileDelete}
+                onFileSetAsContext={onFileSetAsContext}
+                handleCreateFile={handleCreateFile}
+                onRemoveDir={onRemoveDir}
+                onEmbedFileTree={onEmbedFileTree}
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
-  )
-}
+  );
+};
 
-function FileComponent({ item, currentPath, onFileChange, onFileExport, onFileDelete, onFileSetAsContext }: {
+const FileComponent = ({ 
+  item, 
+  currentPath, 
+  rootPath, 
+  onFileChange, 
+  onFileExport, 
+  onFileDelete, 
+  onFileSetAsContext 
+}: {
   item: PathTree;
   currentPath: string;
+  rootPath: string;
   onFileChange: (path: string) => void;
   onFileExport?: (path: string) => void;
   onFileDelete?: (path: string) => void;
   onFileSetAsContext?: (path: string) => void;
-}) {
+}) => {
   const [showControlMenu, setShowControlMenu] = useState(false);
+  const [htmlTemplatePath, setHtmlPath] = useState<string | undefined>();
 
-  function handleRightClick(e: React.MouseEvent, path: string) {
+  const handleRightClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    setShowControlMenu(!showControlMenu);
+    setShowControlMenu(true);
+  };
+
+  // Improved cleanup with useEffect
+  useEffect(() => {
+    if (!showControlMenu) return;
 
     const handleClickOutside = () => {
       setShowControlMenu(false);
-      document.removeEventListener('click', handleClickOutside);
     };
 
     document.addEventListener('click', handleClickOutside);
-  }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showControlMenu]);
 
   return (
     <div className="flex items-center justify-between gap-2">
-      <div className="flex flex-row gap-2 items-center" >
-        <button className="hover:cursor-pointer" onClick={() => onFileChange(currentPath)} onContextMenu={(e) => handleRightClick(e, currentPath)} aria-label="change file shown">
+      <div className="flex flex-row gap-2 items-center">
+        <button 
+          className="hover:cursor-pointer" 
+          onClick={() => onFileChange(currentPath)} 
+          onContextMenu={handleRightClick} 
+          aria-label={`Open ${item.title}`}
+        >
           <FontAwesomeIcon icon={faFile} />
         </button>
         <span>{item.title}</span>
       </div>
-      <div className="relative w-0 h-0">
-        {showControlMenu && <div className="absolute"><FileRightClickMenu currentPath={currentPath} onFileExport={onFileExport} onFileDelete={onFileDelete}/></div>}
-      </div>
+      {showControlMenu && (
+        <div className="relative w-0 h-0">
+          <div className="absolute">
+            <FileRightClickMenu 
+              currentPath={currentPath} 
+              rootPath={rootPath} 
+              onFileExport={onFileExport} 
+              onFileDelete={onFileDelete} 
+              htmlPath={htmlTemplatePath} 
+              setHtmlPath={setHtmlPath}
+              onFileSetAsContext={onFileSetAsContext}
+            />
+          </div>
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
-function FolderComponent({pathTree, path, handleCreateFile, onFileDelete, onRemoveDir, onEmbedFileTree}: {pathTree: PathTree, path: string, handleCreateFile: (event: React.FormEvent<HTMLFormElement>) => Promise<void>, onFileDelete?: (path: string) => void, onRemoveDir?: () => void, onEmbedFileTree?: () => void}) {
+const FolderComponent = ({
+  pathTree, 
+  path, 
+  handleCreateFile, 
+  onFileDelete, 
+  onRemoveDir, 
+  onEmbedFileTree
+}: {
+  pathTree: PathTree;
+  path: string;
+  handleCreateFile: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  onFileDelete?: (path: string) => void;
+  onRemoveDir?: () => void;
+  onEmbedFileTree?: () => Promise<void>;
+}) => {
   const [showControlMenu, setShowControlMenu] = useState(false);
   const [showFileForm, setShowFileForm] = useState(false);
 
-    function handleRightClick(e: React.MouseEvent, path: string) {
+  const handleRightClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    setShowControlMenu(!showControlMenu);
+    setShowControlMenu(true);
+  };
+
+  useEffect(() => {
+    if (!showControlMenu) return;
 
     const handleClickOutside = () => {
       setShowControlMenu(false);
-      document.removeEventListener('click', handleClickOutside);
     };
 
     document.addEventListener('click', handleClickOutside);
-  }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showControlMenu]);
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    setShowFileForm(false); 
+    await handleCreateFile(e);
+  };
 
   return (
-    <div className="font-semibold w-full flex justify-between" onContextMenu={(e) => handleRightClick(e, path)} >
+    <div className="font-semibold w-full flex justify-between" onContextMenu={handleRightClick}>
       {pathTree.title}
-      <div className="w-0 h-0">
-        {showControlMenu && <div className="absolute"><FolderRightClickMenu currentPath={path} onFileDelete={onFileDelete} onFileCreate={() => setShowFileForm(!showFileForm) } onRemoveDir={onRemoveDir} onEmbedFileTree={onEmbedFileTree} /></div>}
-      </div>
-      <form onSubmit={(e) => {
-        setShowFileForm(false); 
-        handleCreateFile(e)}
-        } className={`flex flex-col gap-2 absolute top-0 right-0 p-2 z-1 bg-black rounded-sm border-neutral-500/50 border-1 ${showFileForm ? '' : 'hidden'}`}>
-        <button type="button" className="hover:cursor-pointer absolute top-2 right-2" onClick={() => setShowFileForm(false)}>X</button>
-        <input type="text" name="title" placeholder="File Path" required/>
-        <input type="url" name="content" placeholder="File Content URL" />
-        <input type="hidden" name="path" value={path} />
-        <button type="submit" className="bg-white rounded-md px-2 py-1 hover:cursor-pointer text-black">Add Document</button>
-      </form>
+      {showControlMenu && (
+        <div className="w-0 h-0">
+          <div className="absolute">
+            <FolderRightClickMenu 
+              currentPath={path} 
+              onFileDelete={onFileDelete} 
+              onFileCreate={() => setShowFileForm(true)} 
+              onRemoveDir={onRemoveDir} 
+              onEmbedFileTree={onEmbedFileTree} 
+            />
+          </div>
+        </div>
+      )}
+      {showFileForm && (
+        <form 
+          onSubmit={handleFormSubmit} 
+          className="flex flex-col gap-2 absolute top-0 right-0 p-2 z-10 bg-black rounded-sm border border-neutral-500/50"
+        >
+          <button 
+            type="button" 
+            className="hover:cursor-pointer absolute top-2 right-2" 
+            onClick={() => setShowFileForm(false)}
+            aria-label="Close form"
+          >
+            ✕
+          </button>
+          <input type="text" name="title" placeholder="File Path" required />
+          <input type="url" name="content" placeholder="File Content URL" />
+          <input type="hidden" name="path" value={path} />
+          <button 
+            type="submit" 
+            className="bg-white rounded-md px-2 py-1 hover:cursor-pointer text-black"
+          >
+            Add Document
+          </button>
+        </form>
+      )}
     </div>
-  )
-}
+  );
+};
 
-function FileRightClickMenu({ onFileExport, onFileDelete, currentPath }: {
+const FileRightClickMenu = ({ 
+  onFileExport, 
+  onFileDelete, 
+  onFileSetAsContext,
+  currentPath, 
+  rootPath, 
+  htmlPath, 
+  setHtmlPath 
+}: {
   onFileExport?: (path: string) => void;
   onFileDelete?: (path: string) => void;
+  onFileSetAsContext?: (path: string) => void;
   currentPath: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2 p-2 bg-custom-gray-3 text-custom-gray-1 rounded-md border border-custom-gray-1">
-      {onFileExport && <button onClick={() => onFileExport(currentPath)} className="flex flex-row gap-2">Export <FontAwesomeIcon icon={faFileExport} /></button>}
-      {onFileDelete && <button onClick={() => onFileDelete(currentPath)} className="flex flex-row gap-2">Delete <FontAwesomeIcon icon={faTrash} /></button>}
-    </div>
-  )
-}
+  rootPath: string;
+  htmlPath?: string;
+  setHtmlPath?: React.Dispatch<React.SetStateAction<string | undefined>>;
+}) => {
+  const onExport = async () => {
+    if (!htmlPath) return;
+    await window.electron.ipcRenderer.invoke('template-convert', `${rootPath}/${currentPath}`, htmlPath);
+  };
 
-function FolderRightClickMenu({ onFileDelete, onFileCreate, currentPath, onRemoveDir, onEmbedFileTree }: {
-  onFileDelete?: (path: string) => void;
-  onFileCreate?: (path: string) => void;
-  onRemoveDir?: () => void;
-  onEmbedFileTree?: () => void;
-  currentPath: string;
-}) {
+  const handleFileSelect = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const folder = await window.electron.ipcRenderer.invoke("select-file");
+    if (folder?.filePaths?.length > 0) {
+      console.log("Selected template HTML path: ", folder.filePaths[0]);
+      setHtmlPath?.(folder.filePaths[0]);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2 p-2 bg-custom-gray-3 text-custom-gray-1 rounded-md border border-custom-gray-1">
-      {onFileDelete && <button onClick={() => onFileDelete(currentPath)} className="flex flex-row gap-2 text-nowrap">Delete <FontAwesomeIcon icon={faTrash} /></button>}
-      {onFileCreate && <button onClick={() => onFileCreate(currentPath)} className="flex flex-row gap-2 text-nowrap">New File <FontAwesomeIcon icon={faFile} /></button>}
-      {onRemoveDir && <button onClick={() => onRemoveDir()} className="flex flex-row gap-2 text-nowrap">Remove Directory <FontAwesomeIcon icon={faFile} /></button>}
-      {onEmbedFileTree && <button onClick={() => onEmbedFileTree()} className="flex flex-row gap-2 text-nowrap">Embed File Tree <FontAwesomeIcon icon={faFileExport} /></button>}
+      {onFileExport && (
+        <button onClick={() => onFileExport(currentPath)} className="flex flex-row gap-2">
+          Export <FontAwesomeIcon icon={faFileExport} />
+        </button>
+      )}
+      {onFileDelete && (
+        <button onClick={() => onFileDelete(currentPath)} className="flex flex-row gap-2">
+          Delete <FontAwesomeIcon icon={faTrash} />
+        </button>
+      )}
+      {onFileSetAsContext && (
+        <button onClick={() => onFileSetAsContext(currentPath)} className="flex flex-row gap-2 text-nowrap">
+          Set as Context
+        </button>
+      )}
+      <div>
+        <button onClick={handleFileSelect} className="text-nowrap">
+          {htmlPath ? "Change Template" : "Select Template"}
+        </button>
+        {htmlPath && <button onClick={onExport}>Export</button>}
+      </div>
     </div>
-  )
-}
+  );
+};
+
+const FolderRightClickMenu = ({ 
+  onFileDelete, 
+  onFileCreate, 
+  currentPath, 
+  onRemoveDir, 
+  onEmbedFileTree 
+}: {
+  onFileDelete?: (path: string) => void;
+  onFileCreate?: () => void;
+  onRemoveDir?: () => void;
+  onEmbedFileTree?: () => Promise<void>;
+  currentPath: string;
+}) => {
+  return (
+    <div className="flex flex-col gap-2 p-2 bg-custom-gray-3 text-custom-gray-1 rounded-md border border-custom-gray-1">
+      {onFileDelete && (
+        <button onClick={() => onFileDelete(currentPath)} className="flex flex-row gap-2 text-nowrap">
+          Delete <FontAwesomeIcon icon={faTrash} />
+        </button>
+      )}
+      {onFileCreate && (
+        <button onClick={onFileCreate} className="flex flex-row gap-2 text-nowrap">
+          New File <FontAwesomeIcon icon={faFile} />
+        </button>
+      )}
+      {onRemoveDir && (
+        <button onClick={onRemoveDir} className="flex flex-row gap-2 text-nowrap">
+          Remove Directory <FontAwesomeIcon icon={faTrash} />
+        </button>
+      )}
+      {onEmbedFileTree && (
+        <button onClick={onEmbedFileTree} className="flex flex-row gap-2 text-nowrap">
+          Embed File Tree <FontAwesomeIcon icon={faFileExport} />
+        </button>
+      )}
+    </div>
+  );
+};

@@ -241,7 +241,12 @@ function AddDirectory({path, setDirs, onSwitchActiveFile, onDeleteFile, onCreate
     }
   }, [])
 
-  return <FileTree pathTree={dir.dir} onFileChange={(path) => onSwitchActiveFile(path)} onFileCreate={(path) => onCreateFile(path)} onFileDelete={(path) => onDeleteFile(path)} onRemoveDir={() => handleRemoveDir(path)} onEmbedFileTree={dir.embedFileTree}/>; 
+  function parentPath(filePath: string): string {
+    const parts = filePath.split('/');
+    return parts.slice(0, -1).join('/');
+  }
+
+  return <FileTree rootPath={parentPath(path)} pathTree={dir.dir} onFileChange={(path) => onSwitchActiveFile(path)} onFileCreate={(path) => onCreateFile(path)} onFileDelete={(path) => onDeleteFile(path)} onRemoveDir={() => handleRemoveDir(path)} onEmbedFileTree={dir.embedFileTree}/>; 
 }
 
 function DragAndDrop(props: {children: React.ReactNode, onAddDir: (path: string) => void}) {

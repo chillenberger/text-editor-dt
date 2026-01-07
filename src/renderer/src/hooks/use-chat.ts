@@ -66,6 +66,8 @@ export default function useChat(projectDirectory: string, folders: string[] | nu
               
       const parsedChunk = JSON.parse(chunkQueue.shift() || '{}');
 
+      console.log("Received stream chunk: ", parsedChunk, { depth: null });
+
       if ( parsedChunk.message_chunk ) { 
         setStreamContent((prev) => prev + parsedChunk.message_chunk);
       } else if ( parsedChunk.using_tool ) {
