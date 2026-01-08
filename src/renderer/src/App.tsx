@@ -41,7 +41,6 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     const cleanup = window.api.mainRequestFileState(() => {
-      console.log("Received save request from main process");
       const activeFile = activeFileManager.activeFile;
       if (activeFile) {
         const content = extractFileContent();
@@ -88,7 +87,8 @@ function App(): React.JSX.Element {
     }
     setShowActiveFile(true);
     const rsp = await virtualDir.getFile(filePath);
-    activeFileManager.setFile(filePath, rsp.file?.content || '');
+    const cleanPath = virtualDir.getRelativePathInMFS(filePath);
+    activeFileManager.setFile(cleanPath, rsp.file?.content || '');
   }, [extractFileContent, activeFileManager]);
 
   const handleOnFileDelete = useCallback((filePath: string) => {
@@ -111,12 +111,10 @@ function App(): React.JSX.Element {
   }, [extractFileContent, virtualDir.updateFile]);
 
   const handleRemoveDir = (path: string) => {
-    console.log("Removing directory: ", path);
     setDirsPaths(dirsPaths.filter(p => p !== path));
   };
 
   const handleAddDir = (path: string) => {
-    console.log("Adding directory: ", path);
     if ( !dirsPaths.includes(path) ) {
       setDirsPaths([...dirsPaths, path]);
     }
@@ -155,7 +153,7 @@ function App(): React.JSX.Element {
   return (
   <div className="w-screen h-screen flex justify-between">
     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-5 ">
-      {showSearch && <SearchEmbeddings dirs={dirsPaths} />}
+      {showSearch && <SearchEmbeddings dirs={dirsPaths} onFileSelect={handleSwitchActiveFile} />}
     </div>
     <div className="flex flex-row h-full relative z-2 focus-within:z-4">
       <LeftNav className="flex flex-col gap-4 items-center p-1">

@@ -18,6 +18,7 @@ export type DirEditRsp = {
 
 export type ManagedFileSystem = {
   dir: PathTree;
+  rootPath: string;
   setDir: React.Dispatch<React.SetStateAction<PathTree>>;
   getFile: (path: string) => Promise<DirEditRsp>;
   updateFile: (path: string, content: string) => Promise<DirEditRsp>;
@@ -65,8 +66,8 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
   async function getFile(path: string): Promise<DirEditRsp> {
     console.log("dir Getting file:", path);
 
-    const fullPath = concatFilePath(folder || '', path);
-
+    // If not full path concat with folder
+    const fullPath = (folder && !path.startsWith(folder)) ? concatFilePath(folder, path) : path;
     let content = await window.electron.ipcRenderer.invoke('read-file', fullPath);
     return {nextDirState: dir, success: content !== null, file: content !== null ? {path, content} : undefined};
   }
@@ -124,6 +125,7 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
 
   return {
     dir,
+    rootPath: folder || '',
     setDir,
     getFile,
     updateFile,
@@ -217,6 +219,8 @@ export type VirtualManagedFileSystem = {
   deleteFile: (path: string) => Promise<DirEditRsp>;
   addFile: (path: string, content: string) => Promise<DirEditRsp>;
   pullFileSystem: () => Promise<DirEditRsp>;
+  getManagedFileSystemForPath: (filePath: string) => ManagedFileSystem | null;
+  getRelativePathInMFS: (filePath: string) => string;
 }
 
 // Put all directories into a virtual directory.
@@ -237,12 +241,8 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
   }
 
   async function _useManageFilesWrapper(command: string, filePath: string, content?: string): Promise<DirEditRsp> {
-    const pathSplit = filePath.split('/');
-    if ( pathSplit[0] === projectName ) pathSplit.shift(); // remove project title;
-    const dirTitle = pathSplit[0];
-    filePath = pathSplit.join('/');
-
-    const mfsResults = managedFileSystems.find(mfs => mfs.dir.title === dirTitle);
+    console.log("*** Virtual MFS command:", command, "on filePath:", filePath);
+    const mfsResults = getManagedFileSystemForPath(filePath);
     if ( mfsResults ) {
       switch(command) {
         case 'get': {
@@ -284,6 +284,30 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
     return await _useManageFilesWrapper('add', filePath, content);
   }
 
+  function getManagedFileSystemForPath(filePath: string): ManagedFileSystem | null {
+    const pathSplit = filePath.split('/');
+    if ( pathSplit[0] === projectName ) pathSplit.shift(); // remove project title;
+    const dirTitle = pathSplit[0];
+    filePath = pathSplit.join('/');
+    // search for partial path.
+    let mfsResults = managedFileSystems.find(mfs => mfs.dir.title === dirTitle);
+    // search for full path.
+    if ( !mfsResults ) {
+      mfsResults = managedFileSystems.find(mfs => filePath.startsWith(mfs.rootPath));
+    }
+
+    return mfsResults || null;
+  }
+
+  function getRelativePathInMFS(filePath: string): string {
+    const mfs = getManagedFileSystemForPath(filePath);
+    if ( !mfs ) return filePath;
+    if ( !filePath.startsWith(mfs.rootPath) ) return filePath; // already relative
+    const parentPath =  mfs.rootPath.split("/").slice(0, -1).join('/') + '/';
+    const relativePath = filePath.replace(parentPath, '').replace(/^\/+/, '');
+    return relativePath;
+  }
+
   async function pullFileSystem(): Promise<DirEditRsp> {
     await Promise.all(managedFileSystems.map(mfs => mfs.pullFileSystem()));
     return _consolidateDirRsp({nextDirState: virtualDir, success: true});
@@ -297,6 +321,8 @@ function useVirtualDirectory(projectName: string, dirs: ManagedFileSystem[]): Vi
     deleteFile,
     addFile,
     pullFileSystem,
+    getManagedFileSystemForPath,
+    getRelativePathInMFS,
   };
 }
 
