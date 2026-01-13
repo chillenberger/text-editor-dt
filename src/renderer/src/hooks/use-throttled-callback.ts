@@ -1,6 +1,6 @@
-import throttle from "lodash.throttle"
-import * as React from "react"
-import { useUnmount } from "./use-unmount"
+import throttle from 'lodash.throttle'
+import * as React from 'react'
+import { useUnmount } from './use-unmount'
 
 interface ThrottleSettings {
   leading?: boolean | undefined
@@ -9,7 +9,7 @@ interface ThrottleSettings {
 
 const defaultOptions: ThrottleSettings = {
   leading: false,
-  trailing: true,
+  trailing: true
 }
 
 /**

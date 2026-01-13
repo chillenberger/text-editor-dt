@@ -1,23 +1,20 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { useHotkeys } from "react-hotkeys-hook"
-import { type Editor } from "@tiptap/react"
+import * as React from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
+import { type Editor } from '@tiptap/react'
 
 // --- Hooks ---
-import { useTiptapEditor } from "@renderer/hooks/use-tiptap-editor"
-import { useIsMobile } from "@renderer/hooks/use-mobile"
+import { useTiptapEditor } from '@renderer/hooks/use-tiptap-editor'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 
 // --- Lib ---
-import {
-  isExtensionAvailable,
-  isNodeTypeSelected,
-} from "@renderer/lib/tiptap-utils"
+import { isExtensionAvailable, isNodeTypeSelected } from '@renderer/lib/tiptap-utils'
 
 // --- Icons ---
-import { ImagePlusIcon } from "@renderer/components/tiptap-editor/tiptap-icons/image-plus-icon"
+import { ImagePlusIcon } from '@renderer/components/tiptap-editor/tiptap-icons/image-plus-icon'
 
-export const IMAGE_UPLOAD_SHORTCUT_KEY = "mod+shift+i"
+export const IMAGE_UPLOAD_SHORTCUT_KEY = 'mod+shift+i'
 
 /**
  * Configuration for the image upload functionality
@@ -43,13 +40,10 @@ export interface UseImageUploadConfig {
  */
 export function canInsertImage(editor: Editor | null): boolean {
   if (!editor || !editor.isEditable) return false
-  if (
-    !isExtensionAvailable(editor, "imageUpload") ||
-    isNodeTypeSelected(editor, ["image"])
-  )
+  if (!isExtensionAvailable(editor, 'imageUpload') || isNodeTypeSelected(editor, ['image']))
     return false
 
-  return editor.can().insertContent({ type: "imageUpload" })
+  return editor.can().insertContent({ type: 'imageUpload' })
 }
 
 /**
@@ -57,7 +51,7 @@ export function canInsertImage(editor: Editor | null): boolean {
  */
 export function isImageActive(editor: Editor | null): boolean {
   if (!editor || !editor.isEditable) return false
-  return editor.isActive("imageUpload")
+  return editor.isActive('imageUpload')
 }
 
 /**
@@ -72,7 +66,7 @@ export function insertImage(editor: Editor | null): boolean {
       .chain()
       .focus()
       .insertContent({
-        type: "imageUpload",
+        type: 'imageUpload'
       })
       .run()
   } catch {
@@ -90,9 +84,9 @@ export function shouldShowButton(props: {
   const { editor, hideWhenUnavailable } = props
 
   if (!editor || !editor.isEditable) return false
-  if (!isExtensionAvailable(editor, "imageUpload")) return false
+  if (!isExtensionAvailable(editor, 'imageUpload')) return false
 
-  if (hideWhenUnavailable && !editor.isActive("code")) {
+  if (hideWhenUnavailable && !editor.isActive('code')) {
     return canInsertImage(editor)
   }
 
@@ -136,11 +130,7 @@ export function shouldShowButton(props: {
  * ```
  */
 export function useImageUpload(config?: UseImageUploadConfig) {
-  const {
-    editor: providedEditor,
-    hideWhenUnavailable = false,
-    onInserted,
-  } = config || {}
+  const { editor: providedEditor, hideWhenUnavailable = false, onInserted } = config || {}
 
   const { editor } = useTiptapEditor(providedEditor)
   const isMobile = useIsMobile()
@@ -157,10 +147,10 @@ export function useImageUpload(config?: UseImageUploadConfig) {
 
     handleSelectionUpdate()
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on('selectionUpdate', handleSelectionUpdate)
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
+      editor.off('selectionUpdate', handleSelectionUpdate)
     }
   }, [editor, hideWhenUnavailable])
 
@@ -183,7 +173,7 @@ export function useImageUpload(config?: UseImageUploadConfig) {
     {
       enabled: isVisible && canInsert,
       enableOnContentEditable: !isMobile,
-      enableOnFormTags: true,
+      enableOnFormTags: true
     }
   )
 
@@ -192,8 +182,8 @@ export function useImageUpload(config?: UseImageUploadConfig) {
     isActive,
     handleImage,
     canInsert,
-    label: "Add image",
+    label: 'Add image',
     shortcutKeys: IMAGE_UPLOAD_SHORTCUT_KEY,
-    Icon: ImagePlusIcon,
+    Icon: ImagePlusIcon
   }
 }

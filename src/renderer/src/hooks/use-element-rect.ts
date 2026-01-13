@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { useThrottledCallback } from "./use-throttled-callback"
+import * as React from 'react'
+import { useThrottledCallback } from './use-throttled-callback'
 
-export type RectState = Omit<DOMRect, "toJSON">
+export type RectState = Omit<DOMRect, 'toJSON'>
 
 export interface ElementRectOptions {
   /**
@@ -33,11 +33,11 @@ const initialRect: RectState = {
   top: 0,
   right: 0,
   bottom: 0,
-  left: 0,
+  left: 0
 }
 
-const isSSR = typeof window === "undefined"
-const hasResizeObserver = !isSSR && typeof ResizeObserver !== "undefined"
+const isSSR = typeof window === 'undefined'
+const hasResizeObserver = !isSSR && typeof ResizeObserver !== 'undefined'
 
 /**
  * Helper function to check if code is running on client side
@@ -54,7 +54,7 @@ export function useElementRect({
   element,
   enabled = true,
   throttleMs = 100,
-  useResizeObserver = true,
+  useResizeObserver = true
 }: ElementRectOptions = {}): RectState {
   const [rect, setRect] = React.useState<RectState>(initialRect)
 
@@ -65,11 +65,11 @@ export function useElementRect({
       return document.body
     }
 
-    if (typeof element === "string") {
+    if (typeof element === 'string') {
       return document.querySelector(element)
     }
 
-    if ("current" in element) {
+    if ('current' in element) {
       return element.current
     }
 
@@ -95,7 +95,7 @@ export function useElementRect({
         top: newRect.top,
         right: newRect.right,
         bottom: newRect.bottom,
-        left: newRect.left,
+        left: newRect.left
       })
     },
     throttleMs,
@@ -126,12 +126,12 @@ export function useElementRect({
 
     const handleUpdate = () => updateRect()
 
-    window.addEventListener("scroll", handleUpdate, { passive: true })
-    window.addEventListener("resize", handleUpdate, { passive: true })
+    window.addEventListener('scroll', handleUpdate, { passive: true })
+    window.addEventListener('resize', handleUpdate, { passive: true })
 
     cleanup.push(() => {
-      window.removeEventListener("scroll", handleUpdate)
-      window.removeEventListener("resize", handleUpdate)
+      window.removeEventListener('scroll', handleUpdate)
+      window.removeEventListener('resize', handleUpdate)
     })
 
     return () => {
@@ -146,12 +146,10 @@ export function useElementRect({
 /**
  * Convenience hook for tracking document.body rect
  */
-export function useBodyRect(
-  options: Omit<ElementRectOptions, "element"> = {}
-): RectState {
+export function useBodyRect(options: Omit<ElementRectOptions, 'element'> = {}): RectState {
   return useElementRect({
     ...options,
-    element: isClientSide() ? document.body : null,
+    element: isClientSide() ? document.body : null
   })
 }
 
@@ -160,7 +158,7 @@ export function useBodyRect(
  */
 export function useRefRect<T extends Element>(
   ref: React.RefObject<T>,
-  options: Omit<ElementRectOptions, "element"> = {}
+  options: Omit<ElementRectOptions, 'element'> = {}
 ): RectState {
   return useElementRect({ ...options, element: ref })
 }

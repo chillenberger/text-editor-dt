@@ -6,14 +6,14 @@ import icon from '../../resources/icon.png?asset'
 import dotenv from 'dotenv'
 import setUpFileSystemHandlers from './service/file-service'
 import { initializeAgent, chatStream, convertToTemplate } from './service/chat-service'
-import LocalStorage from '../db/local';
+import LocalStorage from '../db/local'
 import setUpLoggerHandlers from './service/logger-service'
-import { dialog } from 'electron';
-import { updateEmbeddingsForFile, searchEmbeddingsDistinct } from '../lib/embeddings';
-import { getFileSystem } from './service/file-service';
-import { flattenPathTree } from '../lib/paths';
-import { readFileContent, addFile, exportHtmlToPdf, deleteFile } from './service/file-service';
-import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
+import { dialog } from 'electron'
+import { updateEmbeddingsForFile, searchEmbeddingsDistinct } from '../lib/embeddings'
+import { getFileSystem } from './service/file-service'
+import { flattenPathTree } from '../lib/paths'
+import { readFileContent, addFile, exportHtmlToPdf, deleteFile } from './service/file-service'
+import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer'
 
 dotenv.config()
 
@@ -47,16 +47,16 @@ function createWindow(): void {
     menu.append(editMenu)
   }
 
-  const submenu = Menu.buildFromTemplate([{
-    label: 'Save File',
-    click: () => mainWindow.webContents.send('main-request-file-state'),
-    accelerator: 'CommandOrControl+S'
-  }])
-
+  const submenu = Menu.buildFromTemplate([
+    {
+      label: 'Save File',
+      click: () => mainWindow.webContents.send('main-request-file-state'),
+      accelerator: 'CommandOrControl+S'
+    }
+  ])
 
   menu.append(new MenuItem({ label: 'Custom Menu', submenu }))
   Menu.setApplicationMenu(menu)
-
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -91,10 +91,9 @@ app.whenReady().then(async () => {
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
-  const localStorage = new LocalStorage();
-  setUpLoggerHandlers(localStorage);
-  setUpFileSystemHandlers();
-  
+  const localStorage = new LocalStorage()
+  setUpLoggerHandlers(localStorage)
+  setUpFileSystemHandlers()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -112,62 +111,87 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('embed-file-tree', async (_, folderPath: string) => {
-    const dir = await getFileSystem(folderPath);
-    const filePaths= flattenPathTree(dir, folderPath);
+    const dir = await getFileSystem(folderPath)
+    const filePaths = flattenPathTree(dir, folderPath)
 
     for (const path of filePaths) {
-      const content = await readFileContent(path);
-      await updateEmbeddingsForFile(path, content, localStorage);
+      const content = await readFileContent(path)
+      await updateEmbeddingsForFile(path, content, localStorage)
     }
-  });
-
-  ipcMain.on('chat-stream', async (event, userQuery: string, previousResponseId: string | null, folders: string[], chatSessionFromForm: string, timeLastRequestFromForm: string, agentId: string) => {
-    const actionLogs = localStorage.userActions.getActionLogsBySessionAndCreatedAt(chatSessionFromForm, timeLastRequestFromForm);
-    
-    // Re-embed changed files before sending request. 
-    for (const log of actionLogs) {
-      if (log.action_type === 'file-updated') {
-        if (!log.details) continue;
-        const details = JSON.parse(log.details);
-        const filePath = details.filePath;
-        const content = details.content;
-        console.log(`Updating embeddings for file: ${filePath}`);
-        await updateEmbeddingsForFile(filePath, content, localStorage);
-      }
-    }
-
-    return await chatStream(event, userQuery, previousResponseId, folders, chatSessionFromForm, timeLastRequestFromForm, agentId);
   })
 
+  ipcMain.on(
+    'chat-stream',
+    async (
+      event,
+      userQuery: string,
+      previousResponseId: string | null,
+      folders: string[],
+      chatSessionFromForm: string,
+      timeLastRequestFromForm: string,
+      agentId: string
+    ) => {
+      const actionLogs = localStorage.userActions.getActionLogsBySessionAndCreatedAt(
+        chatSessionFromForm,
+        timeLastRequestFromForm
+      )
+
+      // Re-embed changed files before sending request.
+      for (const log of actionLogs) {
+        if (log.action_type === 'file-updated') {
+          if (!log.details) continue
+          const details = JSON.parse(log.details)
+          const filePath = details.filePath
+          const content = details.content
+          console.log(`Updating embeddings for file: ${filePath}`)
+          await updateEmbeddingsForFile(filePath, content, localStorage)
+        }
+      }
+
+      return await chatStream(
+        event,
+        userQuery,
+        previousResponseId,
+        folders,
+        chatSessionFromForm,
+        timeLastRequestFromForm,
+        agentId
+      )
+    }
+  )
+
   ipcMain.handle('template-convert', async (_, markdownPath: string, templateHtmlPath: string) => {
-    const markdownContent = await readFileContent(markdownPath);
-    const templateHtml = await readFileContent(templateHtmlPath);
+    const markdownContent = await readFileContent(markdownPath)
+    const templateHtml = await readFileContent(templateHtmlPath)
 
-    const res = await convertToTemplate(markdownContent, templateHtml);
+    const res = await convertToTemplate(markdownContent, templateHtml)
 
-    const tempPath = app.getPath('userData') + "/converted_" + Date.now() + ".html";
-    addFile(tempPath, res);
-    exportHtmlToPdf(templateHtmlPath, res);
-    deleteFile(tempPath);
+    const tempPath = app.getPath('userData') + '/converted_' + Date.now() + '.html'
+    addFile(tempPath, res)
+    exportHtmlToPdf(templateHtmlPath, res)
+    deleteFile(tempPath)
 
-    return res;
+    return res
   })
 
   ipcMain.handle('search-embeddings', async (_, query: string, topK: number, dirs: string[]) => {
-    const allFilePaths: string[] = [];
+    const allFilePaths: string[] = []
     for (const dir of dirs) {
-      const dirTree = await getFileSystem(dir);
-      const filePaths = flattenPathTree(dirTree, dir);
-      allFilePaths.push(...filePaths);
+      const dirTree = await getFileSystem(dir)
+      const filePaths = flattenPathTree(dirTree, dir)
+      allFilePaths.push(...filePaths)
     }
-    const results = await searchEmbeddingsDistinct(query, localStorage, topK, allFilePaths);
-    console.log("search results: ", results);
-    return results;
-  });
-
-  ipcMain.handle('initialize-agent', async (_, projectName: string, folders: string[], agentId: string) => {
-    await initializeAgent(projectName, folders, agentId, localStorage);
+    const results = await searchEmbeddingsDistinct(query, localStorage, topK, allFilePaths)
+    console.log('search results: ', results)
+    return results
   })
+
+  ipcMain.handle(
+    'initialize-agent',
+    async (_, projectName: string, folders: string[], agentId: string) => {
+      await initializeAgent(projectName, folders, agentId, localStorage)
+    }
+  )
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -178,5 +202,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
-

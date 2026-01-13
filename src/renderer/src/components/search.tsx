@@ -1,45 +1,47 @@
 // components/search.tsx
 
-import { useState } from "react";
-import { LoadingAnimation } from "@renderer/components/loader";
+import { useState } from 'react'
+import { LoadingAnimation } from '@renderer/components/loader'
+import { VirtualManagedFileSystem } from '@renderer/hooks/use-file-manager'
 
 interface SearchEmbeddingsProps {
-  dirs: string[];
-  onFileSelect?: (filePath: string) => void;
+  dirs: string[]
+  onFileSelect?: (filePath: string) => void
+  virtualDir: VirtualManagedFileSystem
 }
 
-export function SearchEmbeddings({ dirs, onFileSelect }: SearchEmbeddingsProps) {
-  const [queryResults, setQueryResults] = useState<Array<{ file_path: string; score: number }>>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+export function SearchEmbeddings({ dirs, onFileSelect, virtualDir }: SearchEmbeddingsProps) {
+  const [queryResults, setQueryResults] = useState<Array<{ file_path: string; score: number }>>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
   const handleSearch = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const form = event.target as HTMLFormElement;
-    const input = form.elements[0] as HTMLInputElement;
-    const query = input.value;
+    event.preventDefault()
+    const form = event.target as HTMLFormElement
+    const input = form.elements[0] as HTMLInputElement
+    const query = input.value
 
-    if (!query.trim()) return;
+    if (!query.trim()) return
 
-    setIsLoading(true);
-    setHasSearched(true);
+    setIsLoading(true)
+    setHasSearched(true)
 
     try {
-      const results = await window.electron.ipcRenderer.invoke("search-embeddings", query, 5, dirs);
-      setQueryResults(results);
+      const results = await window.electron.ipcRenderer.invoke('search-embeddings', query, 5, dirs)
+      setQueryResults(results)
     } catch (error) {
-      console.error("Search failed:", error);
-      setQueryResults([]);
+      console.error('Search failed:', error)
+      setQueryResults([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleResultClick = (filePath: string) => {
     if (onFileSelect) {
-      onFileSelect(filePath);
+      onFileSelect(filePath)
     }
-  };
+  }
 
   const renderContent = () => {
     if (isLoading) {
@@ -48,68 +50,61 @@ export function SearchEmbeddings({ dirs, onFileSelect }: SearchEmbeddingsProps) 
           <LoadingAnimation size="md" />
           <p className="text-custom-gray-1 text-sm">Searching...</p>
         </div>
-      );
+      )
     }
 
     if (!hasSearched) {
-      return (
-        <p className="text-custom-gray-1 text-sm">
-          Enter a search query above.
-        </p>
-      );
+      return <p className="text-custom-gray-1 text-sm">Enter a search query above.</p>
     }
 
     if (queryResults.length === 0) {
-      return (
-        <p className="text-custom-gray-1 text-sm">
-          No results found.
-        </p>
-      );
+      return <p className="text-custom-gray-1 text-sm">No results found.</p>
     }
 
     return queryResults.map((result, index) => (
       <button
         key={index}
         onClick={() => handleResultClick(result.file_path)}
-        className="w-full text-left p-3 rounded-md
-                   hover:bg-custom-gray-2 cursor-pointer 
-                   border-b border-custom-gray-2 last:border-b-0
-                   transition-colors block"
+        className="w-full text-left p-2 rounded-sm mb-1
+                   hover:bg-ide-base cursor-pointer 
+                   border border-transparent hover:border-ide-border
+                   transition-colors block group"
       >
-        <p className="font-medium text-sm truncate text-custom-green-1" title={result.file_path}>
+        <div className="font-medium text-ide-accent truncate" title={result.file_path}>
           {result.file_path.split('/').pop()}
-        </p>
-        <p className="text-xs text-custom-gray-1 truncate">{result.file_path}</p>
-        <p className="text-xs text-custom-gray-2">Score: {result.score.toFixed(4)}</p>
+        </div>
+        <div className="text-xs text-ide-text-muted truncate group-hover:text-ide-text-secondary">
+          {result.file_path}
+        </div>
+        <div className="text-[10px] text-ide-text-muted opacity-50">Score: {result.score.toFixed(2)}</div>
       </button>
-    ));
-  };
+    ))
+  }
 
   return (
-    <div className="bg-custom-gray-3 rounded-md shadow-lg p-4 min-w-80 border border-custom-gray-2">
-      <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+    <div className="flex flex-col gap-2 h-full text-sm">
+      <form onSubmit={handleSearch} className="flex flex-col gap-2 mb-2 p-2">
         <input
           type="text"
-          placeholder="Enter search query"
+          placeholder="Search files..."
           disabled={isLoading}
-          className="flex-1 px-3 py-2 bg-custom-gray-4 border border-custom-gray-2 rounded-md 
-                     text-white placeholder-custom-gray-1
-                     focus:outline-none focus:ring-2 focus:ring-custom-purple-1 focus:border-transparent
-                     disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full px-3 py-2 bg-ide-base border border-ide-border rounded-sm 
+                     text-ide-text-primary placeholder-ide-text-muted
+                     focus:outline-none focus:border-ide-accent
+                     disabled:opacity-50"
+          autoFocus
         />
         <button
           type="submit"
           disabled={isLoading}
-          className="px-4 py-2 bg-custom-purple-2 text-white rounded-md 
-                     hover:bg-custom-purple-1 transition-colors
-                     disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-custom-purple-2"
+          className="w-full px-3 py-1 bg-ide-accent/10 text-ide-accent border border-ide-accent/20 rounded-sm 
+                     hover:bg-ide-accent/20 transition-colors
+                     disabled:opacity-50"
         >
-          Search
+          {isLoading ? 'Searching...' : 'Search'}
         </button>
       </form>
-      <div className="max-h-64 overflow-y-auto">
-        {renderContent()}
-      </div>
+      <div className="flex-1 overflow-y-auto px-2 pb-2">{renderContent()}</div>
     </div>
-  );
+  )
 }

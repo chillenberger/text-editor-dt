@@ -1,19 +1,19 @@
-import { MCPServerStdio, MCPServerStreamableHttp } from '@openai/agents';
+import { MCPServerStdio, MCPServerStreamableHttp } from '@openai/agents'
 
 export type Server = {
-  name: 'fileServer' | 'clientStateServer';
-  instructionsPrompt: string;
-  mcpServer: MCPServerStdio | MCPServerStreamableHttp;
+  name: 'fileServer' | 'clientStateServer'
+  instructionsPrompt: string
+  mcpServer: MCPServerStdio | MCPServerStreamableHttp
 }
 
 export function FileServer(folders: string[]): Server {
-  const projectDirs = folders;
+  const projectDirs = folders
 
   const server = new MCPServerStdio({
     name: 'Filesystem MCP Server, via npx',
-    fullCommand: `npx -y ${import.meta.env.VITE_MCP_SERVER_PATH} ${projectDirs.join(' ')}`,
-  });
-  server.connect();
+    fullCommand: `npx -y ${import.meta.env.VITE_MCP_SERVER_PATH} ${projectDirs.join(' ')}`
+  })
+  server.connect()
   return {
     name: 'fileServer',
     instructionsPrompt: `
@@ -34,10 +34,10 @@ export function FileServer(folders: string[]): Server {
 export function ClientStateServer(): Server {
   const HttpMcpServer = new MCPServerStreamableHttp({
     url: 'http://localhost:8000',
-    name: 'Client State MCP Server',
-  });
+    name: 'Client State MCP Server'
+  })
 
-  HttpMcpServer.connect();
+  HttpMcpServer.connect()
   return {
     name: 'clientStateServer',
     instructionsPrompt: `

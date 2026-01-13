@@ -1,6 +1,6 @@
-import { Agent } from '@openai/agents';
-import { Server } from '../agent-tools/servers';
-import { AgentBase } from './base-assistant';
+import { Agent } from '@openai/agents'
+import { Server } from '../agent-tools/servers'
+import { AgentBase } from './base-assistant'
 
 export class ResumeAssistant extends AgentBase {
   specific_prompt: string = `
@@ -11,9 +11,9 @@ You have discussions with me and help me create and improve job application mate
 `
 
   constructor(mcpServers: Array<Server>, tools: any[]) {
-    super(mcpServers, tools);
+    super(mcpServers, tools)
 
-    this.setAgent(this.constructAgent());
+    this.setAgent(this.constructAgent())
   }
 
   constructAgent() {
@@ -21,9 +21,9 @@ You have discussions with me and help me create and improve job application mate
       name: 'FS MCP Assistant',
       model: 'gpt-5',
       instructions: this.constructPrompt([this.specific_prompt]),
-      mcpServers: this.mcpServers.map(s => s.mcpServer),
-      tools: this.tools,
-    });
+      mcpServers: this.mcpServers.map((s) => s.mcpServer),
+      tools: this.tools
+    })
   }
 }
 
@@ -36,9 +36,9 @@ You have discussions with me and help me with my requests.
 `
 
   constructor(mcpServers: Array<Server>, tools: any[]) {
-    super(mcpServers, tools);
+    super(mcpServers, tools)
 
-    this.setAgent(this.constructAgent());
+    this.setAgent(this.constructAgent())
   }
 
   constructAgent() {
@@ -46,9 +46,9 @@ You have discussions with me and help me with my requests.
       name: 'FS MCP Assistant',
       model: 'gpt-5',
       instructions: this.constructPrompt([this.specific_prompt]),
-      mcpServers: this.mcpServers.map(s => s.mcpServer),
-      tools: this.tools,
-    });
+      mcpServers: this.mcpServers.map((s) => s.mcpServer),
+      tools: this.tools
+    })
   }
 }
 
@@ -62,15 +62,15 @@ export class TemplateAssistant extends AgentBase {
 `
 
   constructor() {
-    super();
-    this.setAgent(this.constructAgent());
+    super()
+    this.setAgent(this.constructAgent())
   }
-  
+
   constructAgent() {
     return new Agent({
       name: 'Template Assistant',
       model: 'gpt-5',
       instructions: this.specific_prompt
-    });
+    })
   }
 }

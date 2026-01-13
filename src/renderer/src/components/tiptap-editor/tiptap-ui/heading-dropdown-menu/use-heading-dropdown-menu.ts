@@ -1,13 +1,13 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import type { Editor } from "@tiptap/react"
+import * as React from 'react'
+import type { Editor } from '@tiptap/react'
 
 // --- Hooks ---
-import { useTiptapEditor } from "@renderer/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@renderer/hooks/use-tiptap-editor'
 
 // --- Icons ---
-import { HeadingIcon } from "@renderer/components/tiptap-editor/tiptap-icons/heading-icon"
+import { HeadingIcon } from '@renderer/components/tiptap-editor/tiptap-icons/heading-icon'
 
 // --- Tiptap UI ---
 import {
@@ -15,8 +15,8 @@ import {
   type Level,
   isHeadingActive,
   canToggle,
-  shouldShowButton,
-} from "@renderer/components/tiptap-editor/tiptap-ui/heading-button"
+  shouldShowButton
+} from '@renderer/components/tiptap-editor/tiptap-ui/heading-button'
 
 /**
  * Configuration for the heading dropdown menu functionality
@@ -92,7 +92,7 @@ export function useHeadingDropdownMenu(config?: UseHeadingDropdownMenuConfig) {
   const {
     editor: providedEditor,
     levels = [1, 2, 3, 4, 5, 6],
-    hideWhenUnavailable = false,
+    hideWhenUnavailable = false
   } = config || {}
 
   const { editor } = useTiptapEditor(providedEditor)
@@ -106,17 +106,15 @@ export function useHeadingDropdownMenu(config?: UseHeadingDropdownMenuConfig) {
     if (!editor) return
 
     const handleSelectionUpdate = () => {
-      setIsVisible(
-        shouldShowButton({ editor, hideWhenUnavailable, level: levels })
-      )
+      setIsVisible(shouldShowButton({ editor, hideWhenUnavailable, level: levels }))
     }
 
     handleSelectionUpdate()
 
-    editor.on("selectionUpdate", handleSelectionUpdate)
+    editor.on('selectionUpdate', handleSelectionUpdate)
 
     return () => {
-      editor.off("selectionUpdate", handleSelectionUpdate)
+      editor.off('selectionUpdate', handleSelectionUpdate)
     }
   }, [editor, hideWhenUnavailable, levels])
 
@@ -126,7 +124,7 @@ export function useHeadingDropdownMenu(config?: UseHeadingDropdownMenuConfig) {
     isActive,
     canToggle: canToggleState,
     levels,
-    label: "Heading",
-    Icon: activeLevel ? headingIcons[activeLevel] : HeadingIcon,
+    label: 'Heading',
+    Icon: activeLevel ? headingIcons[activeLevel] : HeadingIcon
   }
 }
