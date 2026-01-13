@@ -1,85 +1,85 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
+import * as React from 'react'
+import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
 
 // --- Tiptap Core Extensions ---
-import { StarterKit } from "@tiptap/starter-kit"
-import { Image } from "@tiptap/extension-image"
-import { TaskItem, TaskList } from "@tiptap/extension-list"
-import { TextAlign } from "@tiptap/extension-text-align"
-import { Typography } from "@tiptap/extension-typography"
-import { Highlight } from "@tiptap/extension-highlight"
-import { Subscript } from "@tiptap/extension-subscript"
-import { Superscript } from "@tiptap/extension-superscript"
-import { Selection } from "@tiptap/extensions"
-import { Markdown }from "@tiptap/markdown"
+import { StarterKit } from '@tiptap/starter-kit'
+import { Image } from '@tiptap/extension-image'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TextAlign } from '@tiptap/extension-text-align'
+import { Typography } from '@tiptap/extension-typography'
+import { Highlight } from '@tiptap/extension-highlight'
+import { Subscript } from '@tiptap/extension-subscript'
+import { Superscript } from '@tiptap/extension-superscript'
+import { Selection } from '@tiptap/extensions'
+import { Markdown } from '@tiptap/markdown'
 
 // --- UI Primitives ---
-import { Button } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/button"
-import { Spacer } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/spacer"
+import { Button } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/button'
+import { Spacer } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/spacer'
 import {
   Toolbar,
   ToolbarGroup,
-  ToolbarSeparator,
-} from "@renderer/components/tiptap-editor/tiptap-ui-primitive/toolbar"
+  ToolbarSeparator
+} from '@renderer/components/tiptap-editor/tiptap-ui-primitive/toolbar'
 
 // --- Tiptap Node ---
-import { ImageUploadNode } from "@renderer/components/tiptap-editor/tiptap-node/image-upload-node/image-upload-node-extension"
-import { HorizontalRule } from "@renderer/components/tiptap-editor/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension"
-import "@renderer/components/tiptap-editor/tiptap-node/blockquote-node/blockquote-node.scss"
-import "@renderer/components/tiptap-editor/tiptap-node/code-block-node/code-block-node.scss"
-import "@renderer/components/tiptap-editor/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss"
-import "@renderer/components/tiptap-editor/tiptap-node/list-node/list-node.scss"
-import "@renderer/components/tiptap-editor/tiptap-node/image-node/image-node.scss"
-import "@renderer/components/tiptap-editor/tiptap-node/heading-node/heading-node.scss"
-import "@renderer/components/tiptap-editor/tiptap-node/paragraph-node/paragraph-node.scss"
+import { ImageUploadNode } from '@renderer/components/tiptap-editor/tiptap-node/image-upload-node/image-upload-node-extension'
+import { HorizontalRule } from '@renderer/components/tiptap-editor/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
+import '@renderer/components/tiptap-editor/tiptap-node/blockquote-node/blockquote-node.scss'
+import '@renderer/components/tiptap-editor/tiptap-node/code-block-node/code-block-node.scss'
+import '@renderer/components/tiptap-editor/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss'
+import '@renderer/components/tiptap-editor/tiptap-node/list-node/list-node.scss'
+import '@renderer/components/tiptap-editor/tiptap-node/image-node/image-node.scss'
+import '@renderer/components/tiptap-editor/tiptap-node/heading-node/heading-node.scss'
+import '@renderer/components/tiptap-editor/tiptap-node/paragraph-node/paragraph-node.scss'
 
 // --- Tiptap UI ---
-import { HeadingDropdownMenu } from "@renderer/components/tiptap-editor/tiptap-ui/heading-dropdown-menu"
-import { ImageUploadButton } from "@renderer/components/tiptap-editor/tiptap-ui/image-upload-button"
-import { ListDropdownMenu } from "@renderer/components/tiptap-editor/tiptap-ui/list-dropdown-menu"
-import { BlockquoteButton } from "@renderer/components/tiptap-editor/tiptap-ui/blockquote-button"
-import { CodeBlockButton } from "@renderer/components/tiptap-editor/tiptap-ui/code-block-button"
+import { HeadingDropdownMenu } from '@renderer/components/tiptap-editor/tiptap-ui/heading-dropdown-menu'
+import { ImageUploadButton } from '@renderer/components/tiptap-editor/tiptap-ui/image-upload-button'
+import { ListDropdownMenu } from '@renderer/components/tiptap-editor/tiptap-ui/list-dropdown-menu'
+import { BlockquoteButton } from '@renderer/components/tiptap-editor/tiptap-ui/blockquote-button'
+import { CodeBlockButton } from '@renderer/components/tiptap-editor/tiptap-ui/code-block-button'
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
-  ColorHighlightPopoverButton,
-} from "@renderer/components/tiptap-editor/tiptap-ui/color-highlight-popover"
+  ColorHighlightPopoverButton
+} from '@renderer/components/tiptap-editor/tiptap-ui/color-highlight-popover'
 import {
   LinkPopover,
   LinkContent,
-  LinkButton,
-} from "@renderer/components/tiptap-editor/tiptap-ui/link-popover"
-import { MarkButton } from "@renderer/components/tiptap-editor/tiptap-ui/mark-button"
-import { TextAlignButton } from "@renderer/components/tiptap-editor/tiptap-ui/text-align-button"
-import { UndoRedoButton } from "@renderer/components/tiptap-editor/tiptap-ui/undo-redo-button"
+  LinkButton
+} from '@renderer/components/tiptap-editor/tiptap-ui/link-popover'
+import { MarkButton } from '@renderer/components/tiptap-editor/tiptap-ui/mark-button'
+import { TextAlignButton } from '@renderer/components/tiptap-editor/tiptap-ui/text-align-button'
+import { UndoRedoButton } from '@renderer/components/tiptap-editor/tiptap-ui/undo-redo-button'
 
 // --- Icons ---
-import { ArrowLeftIcon } from "@renderer/components/tiptap-editor/tiptap-icons/arrow-left-icon"
-import { HighlighterIcon } from "@renderer/components/tiptap-editor/tiptap-icons/highlighter-icon"
-import { LinkIcon } from "@renderer/components/tiptap-editor/tiptap-icons/link-icon"
+import { ArrowLeftIcon } from '@renderer/components/tiptap-editor/tiptap-icons/arrow-left-icon'
+import { HighlighterIcon } from '@renderer/components/tiptap-editor/tiptap-icons/highlighter-icon'
+import { LinkIcon } from '@renderer/components/tiptap-editor/tiptap-icons/link-icon'
 
 // --- Hooks ---
-import { useIsMobile } from "@renderer/hooks/use-mobile"
-import { useWindowSize } from "@renderer/hooks/use-window-size"
-import { useCursorVisibility } from "@renderer/hooks/use-cursor-visibility"
+import { useIsMobile } from '@renderer/hooks/use-mobile'
+import { useWindowSize } from '@renderer/hooks/use-window-size'
+import { useCursorVisibility } from '@renderer/hooks/use-cursor-visibility'
 
 // --- Components ---
-import { ThemeToggle } from "@renderer/components/tiptap-editor/tiptap-templates/simple/theme-toggle"
+import { ThemeToggle } from '@renderer/components/tiptap-editor/tiptap-templates/simple/theme-toggle'
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@renderer/lib/tiptap-utils"
+import { handleImageUpload, MAX_FILE_SIZE } from '@renderer/lib/tiptap-utils'
 
 // --- Styles ---
-import "@renderer/components/tiptap-editor/tiptap-templates/simple/simple-editor.scss"
+import '@renderer/components/tiptap-editor/tiptap-templates/simple/simple-editor.scss'
 
-import { Editor } from "@tiptap/core";
+import { Editor } from '@tiptap/core'
 
 const MainToolbarContent = ({
   onHighlighterClick,
   onLinkClick,
-  isMobile,
+  isMobile
 }: {
   onHighlighterClick: () => void
   onLinkClick: () => void
@@ -98,10 +98,7 @@ const MainToolbarContent = ({
 
       <ToolbarGroup>
         <HeadingDropdownMenu levels={[1, 2, 3, 4]} portal={isMobile} />
-        <ListDropdownMenu
-          types={["bulletList", "orderedList", "taskList"]}
-          portal={isMobile}
-        />
+        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
         <BlockquoteButton />
         <CodeBlockButton />
       </ToolbarGroup>
@@ -157,16 +154,16 @@ const MainToolbarContent = ({
 
 const MobileToolbarContent = ({
   type,
-  onBack,
+  onBack
 }: {
-  type: "highlighter" | "link"
+  type: 'highlighter' | 'link'
   onBack: () => void
 }) => (
   <>
     <ToolbarGroup>
       <Button data-style="ghost" onClick={onBack}>
         <ArrowLeftIcon className="tiptap-button-icon" />
-        {type === "highlighter" ? (
+        {type === 'highlighter' ? (
           <HighlighterIcon className="tiptap-button-icon" />
         ) : (
           <LinkIcon className="tiptap-button-icon" />
@@ -176,81 +173,74 @@ const MobileToolbarContent = ({
 
     <ToolbarSeparator />
 
-    {type === "highlighter" ? (
-      <ColorHighlightPopoverContent />
-    ) : (
-      <LinkContent />
-    )}
+    {type === 'highlighter' ? <ColorHighlightPopoverContent /> : <LinkContent />}
   </>
 )
 
 interface DisplayEditorProps {
-  editor?: Editor | null;
-  editorType?: 'markdown' | 'html';
+  editor?: Editor | null
+  editorType?: 'markdown' | 'html'
 }
 
-function DisplayEditor({editor, editorType}: DisplayEditorProps) {
+function DisplayEditor({ editor, editorType }: DisplayEditorProps) {
   const isMobile = useIsMobile()
   const { height } = useWindowSize()
-  const [mobileView, setMobileView] = React.useState<
-    "main" | "highlighter" | "link"
-  >("main")
+  const [mobileView, setMobileView] = React.useState<'main' | 'highlighter' | 'link'>('main')
   const toolbarRef = React.useRef<HTMLDivElement>(null)
 
   const rect = useCursorVisibility({
     editor: editor,
-    overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
+    overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0
   })
 
   React.useEffect(() => {
-    if (!isMobile && mobileView !== "main") {
-      setMobileView("main")
+    if (!isMobile && mobileView !== 'main') {
+      setMobileView('main')
     }
   }, [isMobile, mobileView])
 
-
   return (
     <div className="w-full h-full">
-      { editorType === 'html' && editor &&
-      <EditorContext.Provider value={{ editor }}>
-        <Toolbar
-          ref={toolbarRef}
-          style={{
-            ...(isMobile
-              ? {
-                  bottom: `calc(100% - ${height - rect.y}px)`,
-                }
-              : {}),
-          }}
-        >
-          {mobileView === "main" ? (
-            <MainToolbarContent
-              onHighlighterClick={() => setMobileView("highlighter")}
-              onLinkClick={() => setMobileView("link")}
-              isMobile={isMobile}
-            />
-          ) : (
-            <MobileToolbarContent
-              type={mobileView === "highlighter" ? "highlighter" : "link"}
-              onBack={() => setMobileView("main")}
-            />
-          )}
-        </Toolbar>
+      {editorType === 'html' && editor && (
+        <EditorContext.Provider value={{ editor }}>
+          <Toolbar
+            ref={toolbarRef}
+            style={{
+              ...(isMobile
+                ? {
+                    bottom: `calc(100% - ${height - rect.y}px)`
+                  }
+                : {})
+            }}
+          >
+            {mobileView === 'main' ? (
+              <MainToolbarContent
+                onHighlighterClick={() => setMobileView('highlighter')}
+                onLinkClick={() => setMobileView('link')}
+                isMobile={isMobile}
+              />
+            ) : (
+              <MobileToolbarContent
+                type={mobileView === 'highlighter' ? 'highlighter' : 'link'}
+                onBack={() => setMobileView('main')}
+              />
+            )}
+          </Toolbar>
 
+          <EditorContent
+            editor={editor}
+            role="presentation"
+            className="simple-editor-content overflow-auto"
+          />
+        </EditorContext.Provider>
+      )}
+      {editorType === 'markdown' && editor && (
         <EditorContent
           editor={editor}
           role="presentation"
           className="simple-editor-content overflow-auto"
         />
-      </EditorContext.Provider>
-}
-{ editorType === 'markdown' && editor &&
-    <EditorContent
-      editor={editor}
-      role="presentation"
-      className="simple-editor-content overflow-auto"
-    />
-    }
+      )}
     </div>
   )
 }
@@ -261,53 +251,48 @@ function useTipTapMarkdownEditor(onUpdateCallback?: () => void) {
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
-        autocomplete: "off",
-        autocorrect: "off",
-        autocapitalize: "off",
-        "aria-label": "Main content area, start typing to enter text.",
-        class: "simple-editor",
-      },
-    },
-    extensions: [
-      StarterKit,
-      Markdown
-    ],
-    contentType: "markdown",
-    onUpdate: () => {
-      if ( onUpdateCallback ) {
-        onUpdateCallback();
+        autocomplete: 'off',
+        autocorrect: 'off',
+        autocapitalize: 'off',
+        'aria-label': 'Main content area, start typing to enter text.',
+        class: 'simple-editor'
       }
     },
+    extensions: [StarterKit, Markdown],
+    contentType: 'markdown',
+    onUpdate: () => {
+      if (onUpdateCallback) {
+        onUpdateCallback()
+      }
+    }
   })
 
-
-  return markdownEditor;
+  return markdownEditor
 }
 
 function useTipTapHtmlEditor() {
-
   const htmlEditor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
-        autocomplete: "off",
-        autocorrect: "off",
-        autocapitalize: "off",
-        "aria-label": "Main content area, start typing to enter text.",
-        class: "simple-editor",
-      },
+        autocomplete: 'off',
+        autocorrect: 'off',
+        autocapitalize: 'off',
+        'aria-label': 'Main content area, start typing to enter text.',
+        class: 'simple-editor'
+      }
     },
     extensions: [
       StarterKit.configure({
         horizontalRule: false,
         link: {
           openOnClick: false,
-          enableClickSelection: true,
-        },
+          enableClickSelection: true
+        }
       }),
       HorizontalRule,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
@@ -317,17 +302,17 @@ function useTipTapHtmlEditor() {
       Subscript,
       Selection,
       ImageUploadNode.configure({
-        accept: "image/*",
+        accept: 'image/*',
         maxSize: MAX_FILE_SIZE,
         limit: 3,
         upload: handleImageUpload,
-        onError: (error) => console.error("Upload failed:", error),
+        onError: (error) => console.error('Upload failed:', error)
       })
     ],
-    contentType: "html",
+    contentType: 'html'
   })
 
-  return htmlEditor;
+  return htmlEditor
 }
 
 export { DisplayEditor, useTipTapHtmlEditor, useTipTapMarkdownEditor }

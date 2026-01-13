@@ -1,21 +1,19 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { Separator } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/separator"
-import "@renderer/components/tiptap-editor/tiptap-ui-primitive/toolbar/toolbar.scss"
-import { cn } from "@renderer/lib/tiptap-utils"
-import { useMenuNavigation } from "@renderer/hooks/use-menu-navigation"
-import { useComposedRef } from "@renderer/hooks/use-composed-ref"
+import * as React from 'react'
+import { Separator } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/separator'
+import '@renderer/components/tiptap-editor/tiptap-ui-primitive/toolbar/toolbar.scss'
+import { cn } from '@renderer/lib/tiptap-utils'
+import { useMenuNavigation } from '@renderer/hooks/use-menu-navigation'
+import { useComposedRef } from '@renderer/hooks/use-composed-ref'
 
 type BaseProps = React.HTMLAttributes<HTMLDivElement>
 
 interface ToolbarProps extends BaseProps {
-  variant?: "floating" | "fixed"
+  variant?: 'floating' | 'fixed'
 }
 
-const useToolbarNavigation = (
-  toolbarRef: React.RefObject<HTMLDivElement | null>
-) => {
+const useToolbarNavigation = (toolbarRef: React.RefObject<HTMLDivElement | null>) => {
   const [items, setItems] = React.useState<HTMLElement[]>([])
 
   const collectItems = React.useCallback(() => {
@@ -43,9 +41,9 @@ const useToolbarNavigation = (
   const { selectedIndex } = useMenuNavigation<HTMLElement>({
     containerRef: toolbarRef,
     items,
-    orientation: "horizontal",
+    orientation: 'horizontal',
     onSelect: (el) => el.click(),
-    autoSelectFirstItem: false,
+    autoSelectFirstItem: false
   })
 
   React.useEffect(() => {
@@ -54,21 +52,20 @@ const useToolbarNavigation = (
 
     const handleFocus = (e: FocusEvent) => {
       const target = e.target as HTMLElement
-      if (toolbar.contains(target))
-        target.setAttribute("data-focus-visible", "true")
+      if (toolbar.contains(target)) target.setAttribute('data-focus-visible', 'true')
     }
 
     const handleBlur = (e: FocusEvent) => {
       const target = e.target as HTMLElement
-      if (toolbar.contains(target)) target.removeAttribute("data-focus-visible")
+      if (toolbar.contains(target)) target.removeAttribute('data-focus-visible')
     }
 
-    toolbar.addEventListener("focus", handleFocus, true)
-    toolbar.addEventListener("blur", handleBlur, true)
+    toolbar.addEventListener('focus', handleFocus, true)
+    toolbar.addEventListener('blur', handleBlur, true)
 
     return () => {
-      toolbar.removeEventListener("focus", handleFocus, true)
-      toolbar.removeEventListener("blur", handleBlur, true)
+      toolbar.removeEventListener('focus', handleFocus, true)
+      toolbar.removeEventListener('blur', handleBlur, true)
     }
   }, [toolbarRef])
 
@@ -80,7 +77,7 @@ const useToolbarNavigation = (
 }
 
 export const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(
-  ({ children, className, variant = "fixed", ...props }, ref) => {
+  ({ children, className, variant = 'fixed', ...props }, ref) => {
     const toolbarRef = React.useRef<HTMLDivElement>(null)
     const composedRef = useComposedRef(toolbarRef, ref)
     useToolbarNavigation(toolbarRef)
@@ -91,7 +88,7 @@ export const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(
         role="toolbar"
         aria-label="toolbar"
         data-variant={variant}
-        className={cn("tiptap-toolbar", className)}
+        className={cn('tiptap-toolbar', className)}
         {...props}
       >
         {children}
@@ -99,25 +96,18 @@ export const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(
     )
   }
 )
-Toolbar.displayName = "Toolbar"
+Toolbar.displayName = 'Toolbar'
 
 export const ToolbarGroup = React.forwardRef<HTMLDivElement, BaseProps>(
   ({ children, className, ...props }, ref) => (
-    <div
-      ref={ref}
-      role="group"
-      className={cn("tiptap-toolbar-group", className)}
-      {...props}
-    >
+    <div ref={ref} role="group" className={cn('tiptap-toolbar-group', className)} {...props}>
       {children}
     </div>
   )
 )
-ToolbarGroup.displayName = "ToolbarGroup"
+ToolbarGroup.displayName = 'ToolbarGroup'
 
-export const ToolbarSeparator = React.forwardRef<HTMLDivElement, BaseProps>(
-  ({ ...props }, ref) => (
-    <Separator ref={ref} orientation="vertical" decorative {...props} />
-  )
-)
-ToolbarSeparator.displayName = "ToolbarSeparator"
+export const ToolbarSeparator = React.forwardRef<HTMLDivElement, BaseProps>(({ ...props }, ref) => (
+  <Separator ref={ref} orientation="vertical" decorative {...props} />
+))
+ToolbarSeparator.displayName = 'ToolbarSeparator'

@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { useThrottledCallback } from "./use-throttled-callback"
+import * as React from 'react'
+import { useThrottledCallback } from './use-throttled-callback'
 
 export interface WindowSizeState {
   /**
@@ -44,22 +44,16 @@ export function useWindowSize(): WindowSizeState {
     height: 0,
     offsetTop: 0,
     offsetLeft: 0,
-    scale: 0,
+    scale: 0
   })
 
   const handleViewportChange = useThrottledCallback(() => {
-    if (typeof window === "undefined") return
+    if (typeof window === 'undefined') return
 
     const vp = window.visualViewport
     if (!vp) return
 
-    const {
-      width = 0,
-      height = 0,
-      offsetTop = 0,
-      offsetLeft = 0,
-      scale = 0,
-    } = vp
+    const { width = 0, height = 0, offsetTop = 0, offsetLeft = 0, scale = 0 } = vp
 
     setWindowSize((prevState) => {
       if (
@@ -80,12 +74,12 @@ export function useWindowSize(): WindowSizeState {
     const visualViewport = window.visualViewport
     if (!visualViewport) return
 
-    visualViewport.addEventListener("resize", handleViewportChange)
+    visualViewport.addEventListener('resize', handleViewportChange)
 
     handleViewportChange()
 
     return () => {
-      visualViewport.removeEventListener("resize", handleViewportChange)
+      visualViewport.removeEventListener('resize', handleViewportChange)
     }
   }, [handleViewportChange])
 

@@ -1,13 +1,11 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
-import { cn } from "@renderer/lib/tiptap-utils"
-import "@renderer/components/tiptap-editor/tiptap-ui-primitive/dropdown-menu/dropdown-menu.scss"
+import * as React from 'react'
+import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
+import { cn } from '@renderer/lib/tiptap-utils'
+import '@renderer/components/tiptap-editor/tiptap-ui-primitive/dropdown-menu/dropdown-menu.scss'
 
-function DropdownMenu({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root modal={false} {...props} />
 }
 
@@ -42,21 +40,20 @@ const DropdownMenuSubContent = React.forwardRef<
   const content = (
     <DropdownMenuPrimitive.SubContent
       ref={ref}
-      className={cn("tiptap-dropdown-menu", className)}
+      className={cn('tiptap-dropdown-menu', className)}
       {...props}
     />
   )
 
   return portal ? (
-    <DropdownMenuPortal {...(typeof portal === "object" ? portal : {})}>
+    <DropdownMenuPortal {...(typeof portal === 'object' ? portal : {})}>
       {content}
     </DropdownMenuPortal>
   ) : (
     content
   )
 })
-DropdownMenuSubContent.displayName =
-  DropdownMenuPrimitive.SubContent.displayName
+DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayName
 
 const DropdownMenuContent = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Content>,
@@ -69,13 +66,13 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       onCloseAutoFocus={(e) => e.preventDefault()}
-      className={cn("tiptap-dropdown-menu", className)}
+      className={cn('tiptap-dropdown-menu', className)}
       {...props}
     />
   )
 
   return portal ? (
-    <DropdownMenuPortal {...(typeof portal === "object" ? portal : {})}>
+    <DropdownMenuPortal {...(typeof portal === 'object' ? portal : {})}>
       {content}
     </DropdownMenuPortal>
   ) : (
@@ -94,5 +91,5 @@ export {
   DropdownMenuPortal,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuRadioGroup,
+  DropdownMenuRadioGroup
 }

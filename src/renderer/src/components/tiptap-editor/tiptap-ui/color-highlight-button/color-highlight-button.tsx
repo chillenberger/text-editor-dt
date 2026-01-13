@@ -1,31 +1,30 @@
-"use client"
+'use client'
 
-import * as React from "react"
+import * as React from 'react'
 
 // --- Lib ---
-import { parseShortcutKeys } from "@renderer/lib/tiptap-utils"
+import { parseShortcutKeys } from '@renderer/lib/tiptap-utils'
 
 // --- Hooks ---
-import { useTiptapEditor } from "@renderer/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@renderer/hooks/use-tiptap-editor'
 
 // --- Tiptap UI ---
-import type { UseColorHighlightConfig } from "@renderer/components/tiptap-editor/tiptap-ui/color-highlight-button"
+import type { UseColorHighlightConfig } from '@renderer/components/tiptap-editor/tiptap-ui/color-highlight-button'
 import {
   COLOR_HIGHLIGHT_SHORTCUT_KEY,
-  useColorHighlight,
-} from "@renderer/components/tiptap-editor/tiptap-ui/color-highlight-button"
+  useColorHighlight
+} from '@renderer/components/tiptap-editor/tiptap-ui/color-highlight-button'
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/button"
-import { Button } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/button"
-import { Badge } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/badge"
+import type { ButtonProps } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/button'
+import { Button } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/button'
+import { Badge } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/badge'
 
 // --- Styles ---
-import "@renderer/components/tiptap-editor/tiptap-ui/color-highlight-button/color-highlight-button.scss"
+import '@renderer/components/tiptap-editor/tiptap-ui/color-highlight-button/color-highlight-button.scss'
 
 export interface ColorHighlightButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseColorHighlightConfig {
+  extends Omit<ButtonProps, 'type'>, UseColorHighlightConfig {
   /**
    * Optional text to display alongside the icon.
    */
@@ -38,7 +37,7 @@ export interface ColorHighlightButtonProps
 }
 
 export function ColorHighlightShortcutBadge({
-  shortcutKeys = COLOR_HIGHLIGHT_SHORTCUT_KEY,
+  shortcutKeys = COLOR_HIGHLIGHT_SHORTCUT_KEY
 }: {
   shortcutKeys?: string
 }) {
@@ -50,10 +49,7 @@ export function ColorHighlightShortcutBadge({
  *
  * For custom button implementations, use the `useColorHighlight` hook instead.
  */
-export const ColorHighlightButton = React.forwardRef<
-  HTMLButtonElement,
-  ColorHighlightButtonProps
->(
+export const ColorHighlightButton = React.forwardRef<HTMLButtonElement, ColorHighlightButtonProps>(
   (
     {
       editor: providedEditor,
@@ -70,20 +66,14 @@ export const ColorHighlightButton = React.forwardRef<
     ref
   ) => {
     const { editor } = useTiptapEditor(providedEditor)
-    const {
-      isVisible,
-      canColorHighlight,
-      isActive,
-      handleColorHighlight,
-      label,
-      shortcutKeys,
-    } = useColorHighlight({
-      editor,
-      highlightColor,
-      label: text || `Toggle highlight (${highlightColor})`,
-      hideWhenUnavailable,
-      onApplied,
-    })
+    const { isVisible, canColorHighlight, isActive, handleColorHighlight, label, shortcutKeys } =
+      useColorHighlight({
+        editor,
+        highlightColor,
+        label: text || `Toggle highlight (${highlightColor})`,
+        hideWhenUnavailable,
+        onApplied
+      })
 
     const handleClick = React.useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -98,7 +88,7 @@ export const ColorHighlightButton = React.forwardRef<
       () =>
         ({
           ...style,
-          "--highlight-color": highlightColor,
+          '--highlight-color': highlightColor
         }) as React.CSSProperties,
       [highlightColor, style]
     )
@@ -111,7 +101,7 @@ export const ColorHighlightButton = React.forwardRef<
       <Button
         type="button"
         data-style="ghost"
-        data-active-state={isActive ? "on" : "off"}
+        data-active-state={isActive ? 'on' : 'off'}
         role="button"
         tabIndex={-1}
         disabled={!canColorHighlight}
@@ -128,14 +118,10 @@ export const ColorHighlightButton = React.forwardRef<
           <>
             <span
               className="tiptap-button-highlight"
-              style={
-                { "--highlight-color": highlightColor } as React.CSSProperties
-              }
+              style={{ '--highlight-color': highlightColor } as React.CSSProperties}
             />
             {text && <span className="tiptap-button-text">{text}</span>}
-            {showShortcut && (
-              <ColorHighlightShortcutBadge shortcutKeys={shortcutKeys} />
-            )}
+            {showShortcut && <ColorHighlightShortcutBadge shortcutKeys={shortcutKeys} />}
           </>
         )}
       </Button>
@@ -143,4 +129,4 @@ export const ColorHighlightButton = React.forwardRef<
   }
 )
 
-ColorHighlightButton.displayName = "ColorHighlightButton"
+ColorHighlightButton.displayName = 'ColorHighlightButton'

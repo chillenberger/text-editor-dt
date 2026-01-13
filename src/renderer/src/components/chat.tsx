@@ -1,176 +1,267 @@
-
-import useChat from '@renderer/hooks/use-chat';
-import { useEffect, useState, useRef } from 'react';
-import Loader from '@renderer/components/loader';
-import useLogger from '@renderer/hooks/use-logger';
-import SecondaryButton from '@renderer/components/button';
+import useChat from '@renderer/hooks/use-chat'
+import { useEffect, useState, useRef } from 'react'
+import Loader from '@renderer/components/loader'
+import useLogger from '@renderer/hooks/use-logger'
+import SecondaryButton from '@renderer/components/button'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { 
-  faRobot,
-  faRefresh,
-} from '@fortawesome/free-solid-svg-icons';
-import {
-  faPaperPlane
-} from '@fortawesome/free-regular-svg-icons';
-import { ChatResponse } from '../../../types';
+import { faRobot, faRefresh } from '@fortawesome/free-solid-svg-icons'
+import { faPaperPlane } from '@fortawesome/free-regular-svg-icons'
+import { ChatResponse } from '../../../types'
 
 interface ChatWindowProps {
-  onResponse: () => void;
-  project: string;
-  folders: string[] | null;
-  onRequest: () => Promise<void>;
+  onResponse: () => void
+  project: string
+  folders: string[] | null
+  onRequest: () => Promise<void>
 }
 
-export default function ChatWindow({
-    onResponse,
-    project,
-    onRequest,
-    folders
-}: ChatWindowProps) {
-  const { 
-    conversation, 
-    chatIndex, 
-    setChatIndex, 
-    responseId, 
-    isLoading: chatLoading, 
-    error: chatError, 
-    newChat, 
-    chatRequestStream, 
-    streamContent, 
-    chatStreamAction, 
-    lastUserQuery, 
-    agentId, setAgentId } = useChat(project, folders);
-  const logger = useLogger();
-  const isLoading = chatLoading;
+export default function ChatWindow({ onResponse, project, onRequest, folders }: ChatWindowProps) {
+  const {
+    conversation,
+    chatIndex,
+    setChatIndex,
+    responseId,
+    isLoading: chatLoading,
+    error: chatError,
+    newChat,
+    chatRequestStream,
+    streamContent,
+    chatStreamAction,
+    lastUserQuery,
+    agentId,
+    setAgentId
+  } = useChat(project, folders)
+  const logger = useLogger()
+  const isLoading = chatLoading
 
   // useEffect(() => {
   //   loadChatByProjectName(project);
   // }, [])
 
-  // On response clear local edited files tracker and reload all files if changes by chat. 
+  // On response clear local edited files tracker and reload all files if changes by chat.
   useEffect(() => {
-    onResponse();
+    onResponse()
   }, [conversation])
 
   function handleNewChat() {
-    newChat();
-    logger.newSession();
+    newChat()
+    logger.newSession()
   }
 
   const handleNewRequestStream = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+    event.preventDefault()
 
-    const formData = new FormData(event.currentTarget);
-    event.currentTarget.reset();
-    const userRequest = formData.get('userQuery') as string;
+    const formData = new FormData(event.currentTarget)
+    event.currentTarget.reset()
+    const userRequest = formData.get('userQuery') as string
 
-    await onRequest();
-    await chatRequestStream(userRequest, 'test-stream-project', folders || []);
+    await onRequest()
+    await chatRequestStream(userRequest, 'test-stream-project', folders || [])
   }
 
   return (
     <div className="w-full h-full flex flex-col justify-between">
-      { agentId ? 
-      <>
-        <div className="overflow-y-auto text-sm">
-          {(conversation.length > 0 && chatIndex < conversation.length - 1) ? 
-          <ConversationUI userQuery={conversation[chatIndex]?.request || ''} chatResponse={conversation[chatIndex]?.response || {response: '', error: false}}/> : 
-          <ConversationUI userQuery={lastUserQuery} chatResponse={{response: streamContent, error: false, lastResponseId: ''}} chatAction={chatStreamAction}/>}
-        </div>
-        <div className="mt-auto">
-          <div className="flex flex-row gap-2 justify-center items-center my-2">
-            {conversation.map((_, i) => (
-              <button key={i} className={`w-2 h-2 bg-neutral-50 rounded-xl hover:bg-neutral-200 hover:w-3 hover:h-3 ${chatIndex === i ? 'bg-neutral-300 w-3 h-3' : ''}`} onClick={() => {setChatIndex(i)}}></button>
-            ))}
+      {agentId ? (
+        <>
+          <div className="overflow-y-auto text-sm">
+            {conversation.length > 0 && chatIndex < conversation.length - 1 ? (
+              <ConversationUI
+                userQuery={conversation[chatIndex]?.request || ''}
+                chatResponse={conversation[chatIndex]?.response || { response: '', error: false }}
+              />
+            ) : (
+              <ConversationUI
+                userQuery={lastUserQuery}
+                chatResponse={{ response: streamContent, error: false, lastResponseId: '' }}
+                chatAction={chatStreamAction}
+              />
+            )}
           </div>
-          <div className="flex flex-row gap-2 items-center mb-2">
-            <button onClick={handleNewChat} className="underline text-sm hover:cursor-pointer items-center"><FontAwesomeIcon icon={faRefresh} /></button>
-            <AgentPicker selectedAgent={agentId} onChangeAgent={setAgentId} />
+          <div className="mt-auto">
+            <div className="flex flex-row gap-2 justify-center items-center my-2">
+              {conversation.map((_, i) => (
+                <button
+                  key={i}
+                  className={`w-2 h-2 bg-neutral-50 rounded-xl hover:bg-neutral-200 hover:w-3 hover:h-3 ${chatIndex === i ? 'bg-neutral-300 w-3 h-3' : ''}`}
+                  onClick={() => {
+                    setChatIndex(i)
+                  }}
+                ></button>
+              ))}
+            </div>
+            <div className="flex flex-row gap-2 items-center mb-2">
+              <button
+                onClick={handleNewChat}
+                className="underline text-sm hover:cursor-pointer items-center"
+              >
+                <FontAwesomeIcon icon={faRefresh} />
+              </button>
+              <AgentPicker selectedAgent={agentId} onChangeAgent={setAgentId} />
+            </div>
+            <ChatForm
+              onSubmit={handleNewRequestStream}
+              isLoading={isLoading}
+              responseId={responseId}
+            />
+            {chatError && <div className="text-red-500">{chatError}</div>}
           </div>
-          <ChatForm onSubmit={handleNewRequestStream} isLoading={isLoading} responseId={responseId}/>
-          {(chatError) && <div className="text-red-500">{chatError}</div>}    
-        </div>
-      </> : <AgentPicker selectedAgent={agentId || 'a0'} large onChangeAgent={setAgentId} />
-      }
-      
+        </>
+      ) : (
+        <AgentPicker selectedAgent={agentId || 'a0'} large onChangeAgent={setAgentId} />
+      )}
     </div>
   )
 }
 
-function ConversationUI({userQuery, chatResponse, chatAction = null}: {userQuery: string; chatResponse: ChatResponse; chatAction?: string | null}) {
+function ConversationUI({
+  userQuery,
+  chatResponse,
+  chatAction = null
+}: {
+  userQuery: string
+  chatResponse: ChatResponse
+  chatAction?: string | null
+}) {
   return (
     <div className="overflow-y-auto px-2">
-      {userQuery.length > 0 && 
-      <div className="py-2 w-[75%] ms-auto border-r border-neutral-50/50">
-        <pre className="whitespace-pre-wrap text-stone-400 px-1">{userQuery}</pre>
-      </div>}
-      
-      {chatAction && <div className="text-stone-400">{chatAction}</div>}
-      {chatResponse.response.length > 0 && 
-      <div className="py-2">
-        {chatResponse?.error ? 
-          <span className="text-red-500">Error processing your request.</span> : 
-          <pre className="whitespace-pre-wrap text-stone-200 px-1">{chatResponse.response}</pre>}
-      </div>}
+      {userQuery.length > 0 && (
+        <div className="py-2 w-[75%] ms-auto border-r-2 border-ide-accent/50 pr-2">
+          <pre className="whitespace-pre-wrap text-ide-text-secondary px-1 font-sans">
+            {userQuery}
+          </pre>
+        </div>
+      )}
+
+      {chatAction && <div className="text-ide-text-muted italic text-xs py-1">{chatAction}</div>}
+      {chatResponse.response.length > 0 && (
+        <div className="py-2">
+          {chatResponse?.error ? (
+            <span className="text-red-400">Error processing your request.</span>
+          ) : (
+            <pre className="whitespace-pre-wrap text-ide-text-primary px-1 font-sans">
+              {chatResponse.response}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-function AgentPicker({ selectedAgent, onChangeAgent, large }: { selectedAgent: string; onChangeAgent: (agentId: string) => void, large?: boolean }) {
-  const [showPicker, setShowPicker] = useState<boolean>(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
+function AgentPicker({
+  selectedAgent,
+  onChangeAgent,
+  large
+}: {
+  selectedAgent: string
+  onChangeAgent: (agentId: string) => void
+  large?: boolean
+}) {
+  const [showPicker, setShowPicker] = useState<boolean>(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
 
   const togglePicker = () => {
-    setShowPicker(!showPicker);
-  };
+    setShowPicker(!showPicker)
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setShowPicker(false);
+        setShowPicker(false)
       }
-    };
+    }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleChangeAgent = (agentId: string) => {
-    console.log("Changing agent to ", agentId);
-    onChangeAgent(agentId);
-  };
-  
-  if ( large ) {
+    console.log('Changing agent to ', agentId)
+    onChangeAgent(agentId)
+  }
+
+  if (large) {
     return (
-    <div ref={pickerRef} className="flex flex-col gap-2 items-center">
-      <h2>Choose Agent</h2>
-      <div className={`z-10 overflow-hidden transition-all duration-200 ease-in-out flex flex-row`}>
-        <button className={`px-1 ${selectedAgent === 'a0' ? 'border' : ''}`} onClick={() => handleChangeAgent('a0')}>🧑‍🎓</button>
-        <button className={`px-1 ${selectedAgent === 'a1' ? 'border' : ''}`} onClick={() => handleChangeAgent('a1')}>🧑‍🏫</button>
+      <div ref={pickerRef} className="flex flex-col gap-2 items-center text-ide-text-primary">
+        <h2 className="text-lg font-semibold">Choose Agent</h2>
+        <div
+          className={`z-10 overflow-hidden transition-all duration-200 ease-in-out flex flex-row gap-2`}
+        >
+          <button
+            className={`p-2 rounded hover:bg-ide-base ${selectedAgent === 'a0' ? 'bg-ide-base border border-ide-accent' : ''}`}
+            onClick={() => handleChangeAgent('a0')}
+          >
+            🧑‍🎓
+          </button>
+          <button
+            className={`p-2 rounded hover:bg-ide-base ${selectedAgent === 'a1' ? 'bg-ide-base border border-ide-accent' : ''}`}
+            onClick={() => handleChangeAgent('a1')}
+          >
+            🧑‍🏫
+          </button>
+        </div>
       </div>
-    </div>
     )
   }
   return (
     <div ref={pickerRef} className="flex flex-row gap-2 items-center">
-      <FontAwesomeIcon icon={faRobot} className="text-xl hover:cursor-pointer" onClick={togglePicker}/>
-      <div className={`${showPicker ? 'w-20' : 'w-0'} z-10 overflow-hidden transition-all duration-200 ease-in-out flex flex-row`}>
-        <button className={`px-1 ${selectedAgent === 'a0' ? 'border' : ''}`} onClick={() => handleChangeAgent('a0')}>🧑‍🎓</button>
-        <button className={`px-1 ${selectedAgent === 'a1' ? 'border' : ''}`} onClick={() => handleChangeAgent('a1')}>🧑‍🏫</button>
+      <FontAwesomeIcon
+        icon={faRobot}
+        className="text-xl hover:cursor-pointer text-ide-text-muted hover:text-ide-accent"
+        onClick={togglePicker}
+      />
+      <div
+        className={`${showPicker ? 'w-20' : 'w-0'} z-10 overflow-hidden transition-all duration-200 ease-in-out flex flex-row`}
+      >
+        <button
+          className={`px-1 rounded hover:bg-ide-base ${selectedAgent === 'a0' ? 'text-ide-accent' : ''}`}
+          onClick={() => handleChangeAgent('a0')}
+        >
+          🧑‍🎓
+        </button>
+        <button
+          className={`px-1 rounded hover:bg-ide-base ${selectedAgent === 'a1' ? 'text-ide-accent' : ''}`}
+          onClick={() => handleChangeAgent('a1')}
+        >
+          🧑‍🏫
+        </button>
       </div>
     </div>
   )
 }
 
-function ChatForm({onSubmit, isLoading, responseId}: {onSubmit: (event: React.FormEvent<HTMLFormElement>) => void, isLoading: boolean, responseId: string | null}) {
+function ChatForm({
+  onSubmit,
+  isLoading,
+  responseId
+}: {
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  isLoading: boolean
+  responseId: string | null
+}) {
   return (
-    <form onSubmit={onSubmit} className="rounded-lg p-2 pr-4 relative  bg-custom-gray-3 border border-custom-gray-1 h-12 focus-within:h-32 transition-all duration-200 ease-in-out">
-      <textarea name="userQuery" className="chat-input" placeholder="Discuss with ChatGPT"></textarea>
-      {responseId && <input type="hidden" name="previousResponseId" value={responseId}/>}
-      <div className="absolute -top-4 -right-4"><SecondaryButton color="green" className="px-1 py-1 text-[20px]" disabled={isLoading}>{isLoading ? <Loader withText={false}/> : <FontAwesomeIcon icon={faPaperPlane} className="text-gray-800"/>}</SecondaryButton></div>
+    <form
+      onSubmit={onSubmit}
+      className="rounded-lg p-2 pr-4 relative bg-ide-base border border-ide-border h-12 focus-within:h-32 transition-all duration-200 ease-in-out"
+    >
+      <textarea
+        name="userQuery"
+        className="chat-input text-ide-text-primary placeholder-ide-text-muted bg-transparent resize-none focus:outline-none h-full w-full"
+        placeholder="Ask AI..."
+      ></textarea>
+      {responseId && <input type="hidden" name="previousResponseId" value={responseId} />}
+      <div className="absolute top-2 right-2">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="p-2 text-ide-accent hover:text-ide-accent-hover disabled:opacity-50"
+        >
+          {isLoading ? <Loader withText={false} /> : <FontAwesomeIcon icon={faPaperPlane} />}
+        </button>
+      </div>
     </form>
   )
 }

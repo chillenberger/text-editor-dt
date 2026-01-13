@@ -1,31 +1,29 @@
-"use client"
+'use client'
 
-import * as React from "react"
+import * as React from 'react'
 
 // --- Lib ---
-import { parseShortcutKeys } from "@renderer/lib/tiptap-utils"
+import { parseShortcutKeys } from '@renderer/lib/tiptap-utils'
 
 // --- Hooks ---
-import { useTiptapEditor } from "@renderer/hooks/use-tiptap-editor"
+import { useTiptapEditor } from '@renderer/hooks/use-tiptap-editor'
 
 // --- Tiptap UI ---
 import type {
   UndoRedoAction,
-  UseUndoRedoConfig,
-} from "@renderer/components/tiptap-editor/tiptap-ui/undo-redo-button"
+  UseUndoRedoConfig
+} from '@renderer/components/tiptap-editor/tiptap-ui/undo-redo-button'
 import {
   UNDO_REDO_SHORTCUT_KEYS,
-  useUndoRedo,
-} from "@renderer/components/tiptap-editor/tiptap-ui/undo-redo-button"
+  useUndoRedo
+} from '@renderer/components/tiptap-editor/tiptap-ui/undo-redo-button'
 
 // --- UI Primitives ---
-import type { ButtonProps } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/button"
-import { Button } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/button"
-import { Badge } from "@renderer/components/tiptap-editor/tiptap-ui-primitive/badge"
+import type { ButtonProps } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/button'
+import { Button } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/button'
+import { Badge } from '@renderer/components/tiptap-editor/tiptap-ui-primitive/badge'
 
-export interface UndoRedoButtonProps
-  extends Omit<ButtonProps, "type">,
-    UseUndoRedoConfig {
+export interface UndoRedoButtonProps extends Omit<ButtonProps, 'type'>, UseUndoRedoConfig {
   /**
    * Optional text to display alongside the icon.
    */
@@ -39,7 +37,7 @@ export interface UndoRedoButtonProps
 
 export function HistoryShortcutBadge({
   action,
-  shortcutKeys = UNDO_REDO_SHORTCUT_KEYS[action],
+  shortcutKeys = UNDO_REDO_SHORTCUT_KEYS[action]
 }: {
   action: UndoRedoAction
   shortcutKeys?: string
@@ -52,10 +50,7 @@ export function HistoryShortcutBadge({
  *
  * For custom button implementations, use the `useHistory` hook instead.
  */
-export const UndoRedoButton = React.forwardRef<
-  HTMLButtonElement,
-  UndoRedoButtonProps
->(
+export const UndoRedoButton = React.forwardRef<HTMLButtonElement, UndoRedoButtonProps>(
   (
     {
       editor: providedEditor,
@@ -71,13 +66,12 @@ export const UndoRedoButton = React.forwardRef<
     ref
   ) => {
     const { editor } = useTiptapEditor(providedEditor)
-    const { isVisible, handleAction, label, canExecute, Icon, shortcutKeys } =
-      useUndoRedo({
-        editor,
-        action,
-        hideWhenUnavailable,
-        onExecuted,
-      })
+    const { isVisible, handleAction, label, canExecute, Icon, shortcutKeys } = useUndoRedo({
+      editor,
+      action,
+      hideWhenUnavailable,
+      onExecuted
+    })
 
     const handleClick = React.useCallback(
       (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -110,12 +104,7 @@ export const UndoRedoButton = React.forwardRef<
           <>
             <Icon className="tiptap-button-icon" />
             {text && <span className="tiptap-button-text">{text}</span>}
-            {showShortcut && (
-              <HistoryShortcutBadge
-                action={action}
-                shortcutKeys={shortcutKeys}
-              />
-            )}
+            {showShortcut && <HistoryShortcutBadge action={action} shortcutKeys={shortcutKeys} />}
           </>
         )}
       </Button>
@@ -123,4 +112,4 @@ export const UndoRedoButton = React.forwardRef<
   }
 )
 
-UndoRedoButton.displayName = "UndoRedoButton"
+UndoRedoButton.displayName = 'UndoRedoButton'
