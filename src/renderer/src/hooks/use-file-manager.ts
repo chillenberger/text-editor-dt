@@ -25,6 +25,7 @@ export type ManagedFileSystem = {
   addFile: (path: string, content: string) => Promise<DirEditRsp>
   pullFileSystem: () => Promise<DirEditRsp>
   embedFileTree: () => Promise<void>
+  isLoading: boolean
 }
 
 function concatFilePath(folder: string, filePath: string): string {
@@ -37,6 +38,7 @@ function baseName(filePath: string): string {
 
 // Hook to manage a directory and maintain sync with server.
 function useManageFiles(folder: string | null): ManagedFileSystem {
+  const [isLoading, setIsLoading] = useState(false)
   const [dir, setDir] = useState<PathTree>({
     title: baseName(folder || ''),
     pathType: 'dir',
@@ -54,23 +56,27 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
 
   // Pull the file system from the server and update local state.
   async function pullFileSystem(): Promise<DirEditRsp> {
+    setIsLoading(true)
     if (folder) {
       const nextDirState: PathTree = await window.electron.ipcRenderer.invoke(
         'pull-file-system',
         folder
       )
       setDir(nextDirState)
-
+      setIsLoading(false)
       return { nextDirState, success: true }
     }
+    setIsLoading(true)
     return { nextDirState: dir, success: false }
   }
 
   // Get a file at the path from the local store.
   async function getFile(path: string): Promise<DirEditRsp> {
+    setIsLoading(true)
     // If not full path concat with folder
     const fullPath = folder && !path.startsWith(folder) ? concatFilePath(folder, path) : path
     let content = await window.electron.ipcRenderer.invoke('read-file', fullPath)
+    setIsLoading(false)
     return {
       nextDirState: dir,
       success: content !== null,
@@ -80,16 +86,19 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
 
   // Update a file at the path for the local store.
   async function updateFile(filePath: string, content: string): Promise<DirEditRsp> {
+    setIsLoading(true)
     filePath = concatFilePath(folder || '', filePath)
 
     await window.electron.ipcRenderer.invoke('update-file', filePath, content)
     logger.editedFileLog(filePath)
+    setIsLoading(false)
 
     return { nextDirState: dir, success: true }
   }
 
   // Add a file at the path for the local store.
   async function addFile(filePath: string, content: string): Promise<DirEditRsp> {
+    setIsLoading(true)
     const nextDirState = { ...dir }
 
     createFileInPathTree({ path: filePath, content: '' }, nextDirState) // add to local dir
@@ -98,12 +107,14 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
 
     setDir(nextDirState)
     logger.createdFileLog(filePath)
+    setIsLoading(false)
 
     return { nextDirState, success: true }
   }
 
   // Delete a file at the path for the local store.
   async function deleteFile(filePath: string): Promise<DirEditRsp> {
+    setIsLoading(true)
     const nextDirState = { ...dir }
 
     const success = deleteFileFromPathTree(filePath, nextDirState) // delete from local dir
@@ -111,15 +122,18 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
     await window.electron.ipcRenderer.invoke('delete-file', fullPath) // delete from server
     setDir(nextDirState)
     logger.deletedFileLog(filePath)
+    setIsLoading(false)
 
     return { nextDirState, success }
   }
 
   // Embed file tree for all files.
   async function embedFileTree(): Promise<void> {
+    setIsLoading(true)
     if (folder) {
       await window.electron.ipcRenderer.invoke('embed-file-tree', folder)
     }
+    setIsLoading(false)
   }
 
   return {
@@ -131,7 +145,8 @@ function useManageFiles(folder: string | null): ManagedFileSystem {
     deleteFile,
     addFile,
     pullFileSystem,
-    embedFileTree
+    embedFileTree,
+    isLoading
   }
 }
 

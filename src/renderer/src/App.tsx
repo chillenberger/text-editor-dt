@@ -25,7 +25,8 @@ import {
   faX,
   faFolderPlus,
   faPlus,
-  faFileExport
+  faFileExport,
+  faSync
 } from '@fortawesome/free-solid-svg-icons'
 import ChatArea from './components/chat-area'
 import { SearchEmbeddings } from './components/search'
@@ -364,15 +365,18 @@ function AddDirectory({
   }
 
   return (
-    <FileTree
-      rootPath={parentPath(path)}
-      pathTree={dir.dir}
-      onFileChange={(path) => onSwitchActiveFile(path)}
-      onFileCreate={(path) => onCreateFile(path)}
-      onFileDelete={(path) => onDeleteFile(path)}
-      onRemoveDir={() => handleRemoveDir(path)}
-      onEmbedFileTree={dir.embedFileTree}
-    />
+    <div className="relative">
+      {dir.isLoading && <span className="absolute w-full h-full flex items-center justify-center bg-ide-surface-2/50">Syncing <FontAwesomeIcon icon={faSync} className="animate-spin" /></span>}
+      <FileTree
+        rootPath={parentPath(path)}
+        pathTree={dir.dir}
+        onFileChange={(path) => onSwitchActiveFile(path)}
+        onFileCreate={(path) => onCreateFile(path)}
+        onFileDelete={(path) => onDeleteFile(path)}
+        onRemoveDir={() => handleRemoveDir(path)}
+        onEmbedFileTree={dir.embedFileTree}
+      />
+    </div>
   )
 }
 
