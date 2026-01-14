@@ -8,6 +8,8 @@
   /* zinc-900 (custom tweak) */
   --color-ide-surface-2: #27272a;
   /* zinc-800 */
+  --color-ide-surface-3: #3f3f46;
+  /* zinc-700 */
   --color-ide-border: #3f3f46;
   /* zinc-700 */
 
@@ -216,6 +218,7 @@ code {
 }
 
 @media (max-width: 350px) {
+
   .tip,
   .actions {
     display: none;

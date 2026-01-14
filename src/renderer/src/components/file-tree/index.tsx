@@ -260,19 +260,17 @@ const FileComponent = ({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex flex-row gap-2 items-center">
-        <button
-          className="hover:cursor-pointer"
-          onClick={() => onFileChange(currentPath)}
-          onContextMenu={handleRightClick}
-          aria-label={`Open ${item.title}`}
-        >
-          <FontAwesomeIcon icon={faFile} />
-          <span>{item.title}</span>
-        </button>
+    <button
+      className="hover:cursor-pointer truncate w-full flex items-center justify-start gap-1 hover:bg-ide-surface-3"
+      onClick={() => onFileChange(currentPath)}
+      onContextMenu={handleRightClick}
+      aria-label={`Open ${item.title}`}
+    >
+      <div className="w-5">
+        <FontAwesomeIcon icon={faFile} />
       </div>
-    </div>
+      <span className="truncate">{item.title}</span>
+    </button>
   )
 }
 
@@ -308,7 +306,7 @@ const FolderComponent = ({
   }
 
   return (
-    <div className="font-semibold w-full flex justify-between" onContextMenu={handleRightClick}>
+    <div className="font-semibold w-full flex justify-between hover:bg-ide-surface-3" onContextMenu={handleRightClick}>
       {pathTree.title}
       {showFileForm && (
         <form
