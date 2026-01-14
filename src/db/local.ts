@@ -128,6 +128,17 @@ class Embeddings {
     }
   }
 
+  deleteEmbeddingsByFilePath(filePath: string): number {
+    try {
+      const stmt = this.db.prepare('DELETE FROM embeddings WHERE file_path = ?')
+      const info = stmt.run(filePath)
+      return info.changes
+    } catch (error) {
+      console.error('Failed to delete embeddings by file path:', error)
+      throw error
+    }
+  }
+
   getTopKSimilarEmbeddings(
     embedding_vector: number[],
     topK: number,

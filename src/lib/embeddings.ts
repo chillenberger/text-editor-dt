@@ -23,6 +23,7 @@ export async function updateEmbeddingsForFile(
   content: string,
   localStorage: any
 ): Promise<void> {
+  console.log('Updating embeddings for file: ', filePath)
   const chunks = await chunkDocument(content)
 
   // Get existing embeddings for the file

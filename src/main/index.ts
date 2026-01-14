@@ -93,7 +93,7 @@ app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.electron')
   const localStorage = new LocalStorage()
   setUpLoggerHandlers(localStorage)
-  setUpFileSystemHandlers()
+  setUpFileSystemHandlers(localStorage)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

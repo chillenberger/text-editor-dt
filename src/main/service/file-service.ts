@@ -5,6 +5,9 @@ import { readFile, readdir } from 'fs'
 import exec from 'child_process'
 import { ipcMain, dialog } from 'electron'
 import { app } from 'electron'
+import { flattenPathTree } from '../../lib/paths'
+import { updateEmbeddingsForFile } from '../../lib/embeddings'
+import LocalStorage from '../../db/local'
 
 // TODO: ensure no files outside public are ever updated. Security risk.
 
@@ -124,18 +127,31 @@ export async function exportHtmlToPdf(htmlPath: string, htmlContent: string) {
   })
 }
 
-export default function setUpFileSystemHandlers() {
+export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
   ipcMain.handle('pull-file-system', async (_, path) => {
     const fileSystem = await getFileSystem(path)
+
+    const filePaths = flattenPathTree(fileSystem, path)
+    
+    const embeddings: Promise<void>[] = [];
+    for (const path of filePaths) {
+      const content = await readFileContent(path)
+      embeddings.push(updateEmbeddingsForFile(path, content, localStorage))
+    }
+
+    await Promise.all(embeddings)
+    
     return fileSystem
   })
 
   ipcMain.handle('update-file', async (_, filePath: string, content: string) => {
     await updateFile(filePath, content)
+    await updateEmbeddingsForFile(filePath, content, localStorage)
   })
 
   ipcMain.handle('delete-file', async (_, filePath: string) => {
     await deleteFile(filePath)
+    localStorage.embeddings.deleteEmbeddingsByFilePath(filePath)
   })
 
   ipcMain.handle('read-file', async (_, filePath: string) => {
@@ -144,6 +160,7 @@ export default function setUpFileSystemHandlers() {
 
   ipcMain.handle('add-file', async (_, filePath: string, content: string) => {
     await addFile(filePath, content)
+    await updateEmbeddingsForFile(filePath, content, localStorage)
   })
 
   ipcMain.handle('select-folder', async (_, projectName: string) => {
