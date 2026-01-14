@@ -42,7 +42,13 @@ interface FolderMenuProps extends FolderActionCallbacks {
   onFileCreate?: () => void
 }
 
-// Component props
+
+interface NewFileFormProps {
+  path: string
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  onClose: () => void
+}
+
 interface FileTreeProps extends FileActionCallbacks, FolderActionCallbacks {
   pathTree: PathTree
   rootPath: string
@@ -319,12 +325,6 @@ const FolderComponent = ({
   )
 }
 
-interface NewFileFormProps {
-  path: string
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
-  onClose: () => void
-}
-
 const NewFileForm = ({
   path,
   onSubmit,
@@ -341,13 +341,12 @@ const NewFileForm = ({
         ✕
       </button>
       <input type="text" name="title" placeholder="File Name" required />
-      {/* <input type="url" name="content" placeholder="File Content URL" /> */}
       <input type="hidden" name="path" value={path} />
       <button
         type="submit"
         className="bg-white rounded-md px-2 py-1 hover:cursor-pointer text-black"
       >
-        Add Document
+        Create
       </button>
     </form>
   )
