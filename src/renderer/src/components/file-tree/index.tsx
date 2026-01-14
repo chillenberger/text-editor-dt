@@ -269,8 +269,8 @@ const FileComponent = ({
           aria-label={`Open ${item.title}`}
         >
           <FontAwesomeIcon icon={faFile} />
+          <span>{item.title}</span>
         </button>
-        <span>{item.title}</span>
       </div>
     </div>
   )
