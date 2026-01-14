@@ -309,30 +309,47 @@ const FolderComponent = ({
     <div className="font-semibold w-full flex justify-between hover:bg-ide-surface-3" onContextMenu={handleRightClick}>
       {pathTree.title}
       {showFileForm && (
-        <form
+        <NewFileForm
+          path={path}
           onSubmit={handleFormSubmit}
-          className="flex flex-col gap-2 absolute top-0 right-0 p-2 z-10 bg-black rounded-sm border border-neutral-500/50"
-        >
-          <button
-            type="button"
-            className="hover:cursor-pointer absolute top-2 right-2"
-            onClick={() => setShowFileForm(false)}
-            aria-label="Close form"
-          >
-            ✕
-          </button>
-          <input type="text" name="title" placeholder="File Path" required />
-          <input type="url" name="content" placeholder="File Content URL" />
-          <input type="hidden" name="path" value={path} />
-          <button
-            type="submit"
-            className="bg-white rounded-md px-2 py-1 hover:cursor-pointer text-black"
-          >
-            Add Document
-          </button>
-        </form>
+          onClose={() => setShowFileForm(false)}
+        />
       )}
     </div>
+  )
+}
+
+interface NewFileFormProps {
+  path: string
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  onClose: () => void
+}
+
+const NewFileForm = ({
+  path,
+  onSubmit,
+  onClose
+}: NewFileFormProps) => {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-2 absolute top-0 right-0 p-2 z-10 bg-ide-surface-2 rounded-sm border border-neutral-500/50">
+      <button
+        type="button"
+        className="hover:cursor-pointer absolute top-2 right-2"
+        onClick={onClose}
+        aria-label="Close form"
+      >
+        ✕
+      </button>
+      <input type="text" name="title" placeholder="File Name" required />
+      {/* <input type="url" name="content" placeholder="File Content URL" /> */}
+      <input type="hidden" name="path" value={path} />
+      <button
+        type="submit"
+        className="bg-white rounded-md px-2 py-1 hover:cursor-pointer text-black"
+      >
+        Add Document
+      </button>
+    </form>
   )
 }
 

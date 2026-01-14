@@ -30,11 +30,14 @@ import {
 import ChatArea from './components/chat-area'
 import { SearchEmbeddings } from './components/search'
 
+import ResizablePanel from './components/resizable-panel'
+
 function App(): React.JSX.Element {
   const [dirsPaths, setDirsPaths] = useState<string[]>([])
   const [projectDirs, setProjectDirs] = useState<ManagedFileSystem[]>([])
   const activeFileManager = useManageActiveFile(projectDirs)
   const virtualDir = useVirtualDirectory('Test Project', projectDirs)
+
 
   // 'explorer', 'search', 'links' or null
   const [activeSideBar, setActiveSideBar] = useState<'explorer' | 'search' | 'links' | null>(
@@ -190,7 +193,14 @@ function App(): React.JSX.Element {
 
       {/* Sidebar Panel */}
       {activeSideBar && (
-        <div className="w-64 flex-none border-r border-ide-border bg-ide-surface flex flex-col z-10">
+        <ResizablePanel
+          defaultWidth={256}
+          minWidth={200}
+          maxWidth={500}
+          side="left"
+          className="border-r border-ide-border bg-ide-surface flex flex-col z-10"
+        >
+
           <div className="h-8 flex items-center px-4 border-b border-ide-border text-xs font-semibold tracking-wider text-ide-text-muted uppercase">
             {activeSideBar === 'explorer'
               ? 'Explorer'
@@ -234,7 +244,7 @@ function App(): React.JSX.Element {
               <div className="p-4 text-sm text-ide-text-muted">Links will be shown here.</div>
             )}
           </div>
-        </div>
+        </ResizablePanel>
       )}
 
       {/* Main Editor Area */}
@@ -289,14 +299,28 @@ function App(): React.JSX.Element {
       </div>
 
       {/* Chat Area - Fixed Width Right Sidebar */}
-      <ChatArea className="w-80 flex-none border-l border-ide-border bg-ide-surface z-20 flex flex-col">
+      {/* <ChatArea className="w-80 flex-none border-l border-ide-border bg-ide-surface z-20 flex flex-col">
         <ChatWindow
           project="test"
           folders={dirsPaths}
           onRequest={handleOnChatRequest}
           onResponse={handleOnChatResponse}
         />
-      </ChatArea>
+      </ChatArea> */}
+      <ResizablePanel
+        defaultWidth={320}
+        minWidth={250}
+        maxWidth={800}
+        side="right"
+        className="border-l border-ide-border bg-ide-surface z-20 flex flex-col"
+      >
+        <ChatWindow
+          project="test"
+          folders={dirsPaths}
+          onRequest={handleOnChatRequest}
+          onResponse={handleOnChatResponse}
+        />
+      </ResizablePanel>
     </div>
   )
 }
