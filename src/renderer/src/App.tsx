@@ -179,17 +179,17 @@ function App(): React.JSX.Element {
           <FontAwesomeIcon icon={faFile} />
         </Toggle>
         <Toggle
-          onClick={() => toggleSideBar('links')}
-          toggleState={activeSideBar === 'links'}
-        >
-          <FontAwesomeIcon icon={faLink} />
-        </Toggle>
-        <Toggle
           onClick={() => toggleSideBar('search')}
           toggleState={activeSideBar === 'search'}
         >
           <FontAwesomeIcon icon={faSearch} />
         </Toggle>
+        {/* <Toggle
+          onClick={() => toggleSideBar('links')}
+          toggleState={activeSideBar === 'links'}
+        >
+          <FontAwesomeIcon icon={faLink} />
+        </Toggle> */}
       </LeftNav>
 
       {/* Sidebar Panel */}

@@ -25,7 +25,7 @@ export function FileServer(folders: string[]): Server {
 - You can read, write, create, and delete files as needed.
 - When reading files, only read what you need to answer the user's questions.
 - When writing files, ensure they are well-formatted and adhere to best practices.
-- Only produce files that are markdown or html, never ask if I want other file types.
+- Only produce files that are markdown, never ask if I want other file types.
 `,
     mcpServer: server
   }

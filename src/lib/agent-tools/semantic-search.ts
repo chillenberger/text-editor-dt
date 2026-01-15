@@ -1,14 +1,16 @@
 import { tool } from '@openai/agents'
 import LocalStorage from '../../db/local'
 import { getFileSystem } from '../../main/service/file-service'
-import { flattenPathTree } from '../../lib/paths'
+import { flattenPathTree } from '../paths'
 import { searchEmbeddingsDistinct } from '../embeddings'
 import { z } from 'zod'
 
-export function generateGetRelevantFilesTool(folders: string[], localStorage: LocalStorage) {
+export function semanticSearchTool(folders: string[], localStorage: LocalStorage) {
   return tool({
-    name: 'get_relevant_files',
-    description: 'Get the top 5 relevant file paths based on a query.',
+    name: 'semantic_search',
+    description: 'Get the top 5 relevant file paths based on a query, ' +
+    'only works within allowed directories. Use this tool when you need to ' + 
+    'know what files are relevant to a query or information you need to know.',
     parameters: z.object({ query: z.string() }),
     async execute({ query }) {
       const allFilePaths: string[] = []
@@ -18,7 +20,6 @@ export function generateGetRelevantFilesTool(folders: string[], localStorage: Lo
         allFilePaths.push(...filePaths)
       }
       const results = await searchEmbeddingsDistinct(query, localStorage, 5, allFilePaths)
-      console.log('get_relevant_files results: ', results)
       return results
     }
   })

@@ -1,17 +1,24 @@
 import { Conversation, ChatResponse, ChatSchema, ChatLog, ChatActions } from '../../types'
 import { IpcMainEvent } from 'electron'
 import LocalStorage from '../../db/local'
-import { FileServer } from '../../lib/agent-tools/servers'
-import { generateGetRelevantFilesTool } from '../../lib/agent-tools/tools'
+import { semanticSearchTool } from '../../lib/agent-tools/semantic-search'
+import { fileSystemTools, initializeFileSystemTools } from '../../lib/agent-tools/filesystem'
 import { ResumeAssistant, GeneralAssistant, TemplateAssistant } from '../../lib/agents/assistant'
 import { AgentBase } from '../../lib/agents/base-assistant'
+import { Tool } from '@openai/agents'
 
 let myAgentInstance: AgentBase | null = null
 let localStorage: LocalStorage | null = null
 
 function createAgent(agentId: string, folders: string[], localStorageDB: LocalStorage): AgentBase {
-  const servers = [FileServer(folders)]
-  const tools = [generateGetRelevantFilesTool(folders, localStorageDB)]
+  // const servers = [FileServer(folders)]
+  const servers = []
+  const tools: Tool[] = []
+  if (folders.length > 0) {
+    initializeFileSystemTools(folders);
+    tools.push(...fileSystemTools)
+    tools.push(semanticSearchTool(folders, localStorageDB))
+  }
   if (agentId === 'a1') {
     return new ResumeAssistant(servers, tools)
   }
