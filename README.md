@@ -45,11 +45,12 @@ $ npm run build:linux
 
 - [ ] UI
   - [x] thin out left nav.
-  - [ ] drag to widen chat window / and other windows.
+  - [x] drag to widen chat window / and other windows.
   - [x] fix text box height in chat box.
   - [x] bring active level to front.
   - [ ] md file cursor goes invisible.
 - [ ] user created agents
+- [ ] Planning, editable plans.
 - [ ] Customize writing style.
 - [ ] Create default internal file system that is savable somewhere when desired by user.
 - [ ] Make work for naked files not just folders.
