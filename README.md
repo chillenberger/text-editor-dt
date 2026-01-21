@@ -62,7 +62,7 @@ $ npm run build:linux
 - [ ] chat by voice?
 - [ ] save chat threads.
 - [ ] UX
-  - [ ] control s hot key to save a file.
+  - [x] control s hot key to save a file.
   - [ ] control f for finding.
 
 ## Add On's:
