@@ -9,6 +9,12 @@ const api = {
     ipcRenderer.on('main-request-file-state', listener)
     // Return cleanup function to remove listener
     return () => ipcRenderer.removeListener('main-request-file-state', listener)
+  },
+  userData: {
+    get: (key: string) => ipcRenderer.invoke('db:user-data-get', key),
+    set: (key: string, value: string) => ipcRenderer.invoke('db:user-data-set', key, value),
+    delete: (key: string) => ipcRenderer.invoke('db:user-data-delete', key),
+    getAll: () => ipcRenderer.invoke('db:user-data-get-all')
   }
 }
 

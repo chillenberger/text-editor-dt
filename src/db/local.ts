@@ -277,10 +277,82 @@ class UserActions {
   }
 }
 
+class UserData {
+  db: Database.Database
+
+  constructor(db: Database.Database) {
+    this.db = db
+  }
+
+  setupTable(): void {
+    try {
+      this.db.exec(`
+                CREATE TABLE IF NOT EXISTS user_data (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+            `)
+    } catch (error) {
+      console.error('Failed to setup user_data table:', error)
+      throw error
+    }
+  }
+
+  get(key: string): string | null {
+    try {
+      const stmt = this.db.prepare('SELECT value FROM user_data WHERE key = ?')
+      const row = stmt.get(key) as { value: string } | undefined
+      return row ? row.value : null
+    } catch (error) {
+      console.error('Failed to get user data:', error)
+      throw error
+    }
+  }
+
+  set(key: string, value: string): void {
+    try {
+      const stmt = this.db.prepare(
+        'INSERT INTO user_data (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+      )
+      stmt.run(key, value)
+    } catch (error) {
+      console.error('Failed to set user data:', error)
+      throw error
+    }
+  }
+
+  delete(key: string): void {
+    try {
+      const stmt = this.db.prepare('DELETE FROM user_data WHERE key = ?')
+      stmt.run(key)
+    } catch (error) {
+      console.error('Failed to delete user data:', error)
+      throw error
+    }
+  }
+
+  getAll(): Record<string, string> {
+    try {
+      const stmt = this.db.prepare('SELECT key, value FROM user_data')
+      const rows = stmt.all() as { key: string; value: string }[]
+      const result: Record<string, string> = {}
+      for (const row of rows) {
+        result[row.key] = row.value
+      }
+      return result
+    } catch (error) {
+      console.error('Failed to get all user data:', error)
+      throw error
+    }
+  }
+}
+
 class LocalStorage {
   db: Database.Database
   public userActions: UserActions
   public embeddings: Embeddings
+  public userData: UserData
   private initialized: boolean = false
 
   constructor() {
@@ -289,6 +361,7 @@ class LocalStorage {
     this.db.pragma('journal_mode = WAL')
     this.embeddings = new Embeddings(this.db)
     this.userActions = new UserActions(this.db)
+    this.userData = new UserData(this.db)
     this.initialize()
   }
 
@@ -298,6 +371,7 @@ class LocalStorage {
       sqliteVec.load(this.db)
       this.embeddings.setupTable()
       this.userActions.setupTable()
+      this.userData.setupTable()
       this.initialized = true
     } catch (error) {
       console.error('Failed to initialize database:', error)

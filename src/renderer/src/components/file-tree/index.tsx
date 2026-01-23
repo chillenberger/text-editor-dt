@@ -33,7 +33,7 @@ interface FileMenuProps extends Pick<
   currentPath: string
   rootPath: string
   htmlPath?: string
-  setHtmlPath?: React.Dispatch<React.SetStateAction<string | undefined>>
+  setHtmlPath: React.Dispatch<React.SetStateAction<string | undefined>>
 }
 
 interface FolderMenuProps extends FolderActionCallbacks {
@@ -160,6 +160,8 @@ export default function FileTree({
                   onFileDelete={fileMenu.onFileDelete}
                   onFileSetAsContext={fileMenu.onFileSetAsContext}
                   rootPath={fileMenu.rootPath}
+                  htmlPath={fileMenu.htmlPath}
+                  setHtmlPath={fileMenu.setHtmlPath}
                 />
               )}
               {folderMenu && (
@@ -250,6 +252,8 @@ const FileComponent = ({
   onFileSetAsContext,
   setMenu
 }: FileComponentProps) => {
+  const [htmlPath, setHtmlPath] = useState<string | undefined>(undefined)
+
   const handleRightClick = (e: React.MouseEvent) => {
     e.preventDefault()
     setMenu(
@@ -258,7 +262,9 @@ const FileComponent = ({
         rootPath,
         onFileExport,
         onFileDelete,
-        onFileSetAsContext
+        onFileSetAsContext,
+        htmlPath,
+        setHtmlPath
       },
       { x: e.clientX, y: e.clientY },
       'file'
@@ -364,7 +370,7 @@ const FileRightClickMenu = ({
   const onExport = async () => {
     if (!htmlPath) return
     await window.electron.ipcRenderer.invoke(
-      'template-convert',
+      'convert-md-to-pdf',
       `${rootPath}/${currentPath}`,
       htmlPath
     )
@@ -375,7 +381,7 @@ const FileRightClickMenu = ({
     const folder = await window.electron.ipcRenderer.invoke('select-file')
     if (folder?.filePaths?.length > 0) {
       console.log('Selected template HTML path: ', folder.filePaths[0])
-      setHtmlPath?.(folder.filePaths[0])
+      setHtmlPath(folder.filePaths[0])
     }
   }
 

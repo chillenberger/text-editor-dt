@@ -315,12 +315,14 @@ function App(): React.JSX.Element {
         side="right"
         className="border-l border-ide-border bg-ide-surface z-20 flex flex-col"
       >
-        <ChatWindow
-          project="test"
-          folders={dirsPaths}
-          onRequest={handleOnChatRequest}
-          onResponse={handleOnChatResponse}
-        />
+        <div className="p-3 h-full">
+          <ChatWindow
+            project="test"
+            folders={dirsPaths}
+            onRequest={handleOnChatRequest}
+            onResponse={handleOnChatResponse}
+          />
+        </div>
       </ResizablePanel>
     </div>
   )

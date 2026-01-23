@@ -8,6 +8,7 @@ import { app } from 'electron'
 import { flattenPathTree } from '../../lib/paths'
 import { updateEmbeddingsForFile } from '../../lib/embeddings'
 import LocalStorage from '../../db/local'
+import puppeteer from 'puppeteer'
 
 // TODO: ensure no files outside public are ever updated. Security risk.
 
@@ -99,32 +100,21 @@ async function updateFile(path: string, content: string) {
   }
 }
 
-export async function exportHtmlToPdf(htmlPath: string, htmlContent: string) {
-  const tempFolder = app.getPath('userData')
-  const desktopPath = app.getPath('desktop')
-
-  if (!htmlContent || !htmlPath) {
+export async function exportHtmlToPdf(htmlContent: string, outputFilePath: string, fileName: string) {
+  if (!htmlContent || !outputFilePath) {
     console.error('No HTML content provided')
     return
   }
 
-  const fileName = path.parse(htmlPath).name
-
-  const timeStamp = Date.now()
-  const outputFilePath = path.join(desktopPath, fileName + '.pdf')
-  const tempFilePath = path.join(tempFolder, `${fileName}_${timeStamp}.html`)
-  const command = `html2pdf "${tempFilePath}" --background --output "${outputFilePath}"`
-
-  writeFileSync(tempFilePath, htmlContent)
-
-  exec.exec(command, (error, stdout, stderr) => {
-    unlinkSync(tempFilePath)
-    if (error) {
-      console.error(`Error executing command: ${error}`)
-      return
-    }
-    console.log(`Command output: ${stdout}`)
+  const browser = await puppeteer.launch()
+  const page = await browser.newPage()
+  await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+  await page.pdf({
+    path: path.join(outputFilePath, fileName + '.pdf'),
+    printBackground: true,
+    preferCSSPageSize: true
   })
+  await browser.close()
 }
 
 export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
@@ -172,11 +162,4 @@ export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
     const folder = await dialog.showOpenDialog({ properties: ['openFile'] })
     return folder
   })
-
-  ipcMain.handle(
-    'export-html-to-pdf',
-    async (_, formData: { filePath: string; content: string }) => {
-      await exportHtmlToPdf(formData.filePath, formData.content)
-    }
-  )
 }

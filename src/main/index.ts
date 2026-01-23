@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, MenuItem } from 'electron'
 import { join } from 'path'
-import { existsSync, readFile } from 'fs'
+import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import dotenv from 'dotenv'
@@ -8,12 +8,12 @@ import setUpFileSystemHandlers from './service/file-service'
 import { initializeAgent, chatStream, convertToTemplate } from './service/chat-service'
 import LocalStorage from '../db/local'
 import setUpLoggerHandlers from './service/logger-service'
-import { dialog } from 'electron'
 import { updateEmbeddingsForFile, searchEmbeddingsDistinct } from '../lib/embeddings'
 import { getFileSystem } from './service/file-service'
 import { flattenPathTree } from '../lib/paths'
-import { readFileContent, addFile, exportHtmlToPdf, deleteFile } from './service/file-service'
+import { readFileContent, exportHtmlToPdf } from './service/file-service'
 import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer'
+import path from 'path'
 
 dotenv.config()
 
@@ -95,6 +95,8 @@ app.whenReady().then(async () => {
   setUpLoggerHandlers(localStorage)
   setUpFileSystemHandlers(localStorage)
 
+
+
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
@@ -160,18 +162,17 @@ app.whenReady().then(async () => {
     }
   )
 
-  ipcMain.handle('template-convert', async (_, markdownPath: string, templateHtmlPath: string) => {
+  ipcMain.handle('convert-md-to-pdf', async (_, markdownPath: string, templateHtmlPath: string) => {
     const markdownContent = await readFileContent(markdownPath)
     const templateHtml = await readFileContent(templateHtmlPath)
 
-    const res = await convertToTemplate(markdownContent, templateHtml)
+    const desktopPath = app.getPath('desktop')
+    const fileName = path.parse(markdownPath).name
+    const outputFilePath = path.join(desktopPath)
 
-    const tempPath = app.getPath('userData') + '/converted_' + Date.now() + '.html'
-    addFile(tempPath, res)
-    exportHtmlToPdf(templateHtmlPath, res)
-    deleteFile(tempPath)
+    const convertedHtml = await convertToTemplate(markdownContent, templateHtml, localStorage)
 
-    return res
+    exportHtmlToPdf(convertedHtml, outputFilePath, fileName)
   })
 
   ipcMain.handle('search-embeddings', async (_, query: string, topK: number, dirs: string[]) => {
@@ -192,6 +193,22 @@ app.whenReady().then(async () => {
       await initializeAgent(projectName, folders, agentId, localStorage)
     }
   )
+
+  ipcMain.handle('db:user-data-get', (_, key: string) => {
+    return localStorage.userData.get(key)
+  })
+
+  ipcMain.handle('db:user-data-set', (_, key: string, value: string) => {
+    return localStorage.userData.set(key, value)
+  })
+
+  ipcMain.handle('db:user-data-delete', (_, key: string) => {
+    return localStorage.userData.delete(key)
+  })
+
+  ipcMain.handle('db:user-data-get-all', () => {
+    return localStorage.userData.getAll()
+  })
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

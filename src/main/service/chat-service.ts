@@ -77,10 +77,19 @@ async function chatStream(
   }
 }
 
-async function convertToTemplate(markdownContent: string, templateHtml: string): Promise<string> {
+async function convertToTemplate(
+  markdownContent: string,
+  templateHtml: string,
+  localStorage: LocalStorage
+): Promise<string> {
   const templateAgent = new TemplateAssistant()
+  const userData = localStorage.userData.getAll()
 
-  const query = JSON.stringify({ markdown: markdownContent, template: templateHtml })
+  const query = JSON.stringify({
+    markdown: markdownContent,
+    template: templateHtml,
+    userData: userData
+  })
 
   const rsp = await templateAgent.run(query, null)
   console.log('Template agent response: ', rsp)

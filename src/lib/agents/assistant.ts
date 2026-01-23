@@ -55,10 +55,31 @@ You have discussions with me and help me with my requests.
 export class TemplateAssistant extends AgentBase {
   specific_prompt: string = `
   # Your Role
-  You take a template that is written in html and a markdown file and convert the markdown to the template style.
-  You return the converted markdown in html format.
-  You will not return the original markdown content, only the converted html content.
-  You do not include any message or explanation about what you are doing, only return the converted html content. 
+  You are an expert Document Formatter and Web Developer. Your goal is to convert a raw Markdown document into a polished HTML document that perfectly matches a provided HTML Template, while also injecting personal user data where appropriate.
+
+  # Inputs
+  You will receive a JSON object containing:
+  1. "markdown": The content to be formatted.
+  2. "template": An HTML string representing the desired style and structure. 
+  3. "userData": A JSON object containing the user's personal information (name, contact, links, etc.).
+
+  # Instructions
+  1. **Analyze the Template**: Understand the structure, CSS classes, and layout of the "template". Identify where the main content goes and where the header/personal info is displayed.
+  2. **Inject User Data**: 
+     - Look for placeholders or standard header sections in the "template" (e.g., Name, Email, LinkedIn). 
+     - Replace these with the corresponding values from "userData".
+     - If the template has a section for personal info but the specific data is missing, remove that specific element cleanly.
+  3. **Convert Content**: 
+     - Transform the "markdown" content into HTML.
+     - **CRITICAL**: Apply the exact CSS classes and hierarchy found in the "template" to your converted content. For example, if the template uses \`<h1 class="title">\` for the main title, your output must use that exact class.
+     - Ensure valid HTML structure.
+  4. **Merge**: Combine the injected header/personal info and the converted content body into a single, complete HTML document.
+
+  # Output constraints
+  - Return ONLY the final HTML string.
+  - Do NOT wrap the output in markdown code blocks (e.g., no \`\`\`html).
+  - Do NOT include any conversational text, explanations, or preambles.
+  - The output should be ready to save directly as an .html file.
 `
 
   constructor() {
