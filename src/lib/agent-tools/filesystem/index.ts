@@ -3,6 +3,9 @@
 import { tool } from '@openai/agents'
 import fs from "fs/promises";
 import { createReadStream } from "fs";
+import { createRequire } from 'module';
+const nodeRequire = createRequire(import.meta.url);
+const pdf = nodeRequire('pdf-parse/lib/pdf-parse.js');
 import path from "path";
 import { z } from "zod";
 import { minimatch } from "minimatch";
@@ -75,6 +78,10 @@ const ReadTextFileArgsSchema = z.object({
 });
 
 const ReadMediaFileArgsSchema = z.object({
+  path: z.string()
+});
+
+const ReadPdfFileArgsSchema = z.object({
   path: z.string()
 });
 
@@ -152,8 +159,6 @@ async function readFileAsBase64Stream(filePath: string): Promise<string> {
   });
 }
 
-const readOnlyTools = ["read_file", "read_text_file", "read_media_file", "read_multiple_files", "list_allowed_directories", "list_directory", "list_directory_with_sizes", "directory_tree", "search_files", "get_file_info"];
-
 const toolsList = [
       {
         name: "read_file",
@@ -178,6 +183,14 @@ const toolsList = [
           "Read an image or audio file. Returns the base64 encoded data and MIME type. " +
           "Only works within allowed directories.",
         parameters: ReadMediaFileArgsSchema,
+      },
+      {
+        name: "read_pdf_file",
+        description:
+          "Read the text content of a PDF file. Use this when you need to read " +
+          "a .pdf file to understand its contents. Returns the extracted text. " +
+          "Only works within allowed directories.",
+        parameters: ReadPdfFileArgsSchema,
       },
       {
         name: "read_multiple_files",
@@ -295,11 +308,12 @@ export const fileSystemTools = toolsList.map((fileTool) =>
   })
 )  
 
-const handleToolCall = async ({name, arguments: args}: ToolCall) => {
+export const handleToolCall = async ({name, arguments: args}: ToolCall) => {
   try {
     switch (name) {
       case "read_file":
       case "read_text_file": {
+        console.log("Text file read request from server: ", args)
         const parsed = ReadTextFileArgsSchema.safeParse(args);
         if (!parsed.success) {
           throw new Error(`Invalid arguments for read_text_file: ${parsed.error}`);
@@ -335,6 +349,7 @@ const handleToolCall = async ({name, arguments: args}: ToolCall) => {
       }
 
       case "read_media_file": {
+        console.log("Media file read request from server: ", args)
         const parsed = ReadMediaFileArgsSchema.safeParse(args);
         if (!parsed.success) {
           throw new Error(`Invalid arguments for read_media_file: ${parsed.error}`);
@@ -364,6 +379,25 @@ const handleToolCall = async ({name, arguments: args}: ToolCall) => {
         return {
           content: [{ type, data, mimeType }],
         };
+      }
+
+      case "read_pdf_file": {
+        const parsed = ReadPdfFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for read_pdf_file: ${parsed.error}`);
+        }
+        const validPath = await validatePath(parsed.data.path);
+        
+        // Read file as buffer
+        const buffer = await fs.readFile(validPath);
+        try {
+          const data = await pdf(buffer);
+          return {
+            content: [{ type: "text", text: data.text }],
+          };
+        } catch (error) {
+          throw new Error(`Failed to parse PDF file: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
 
       case "read_multiple_files": {
@@ -406,6 +440,7 @@ const handleToolCall = async ({name, arguments: args}: ToolCall) => {
           throw new Error(`Invalid arguments for edit_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
+        // @ts-ignore - Zod type inference mismatch with interface
         const result = await applyFileEdits(validPath, parsed.data.edits, parsed.data.dryRun ?? false);
         return {
           content: [{ type: "text", text: result }],

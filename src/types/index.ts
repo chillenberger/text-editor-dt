@@ -59,4 +59,4 @@ export type Conversation = {
   response: ChatResponse
 }
 
-export type EditorTypes = 'markdown' | 'html'
+export type EditorTypes = 'markdown' | 'html' | 'pdf'

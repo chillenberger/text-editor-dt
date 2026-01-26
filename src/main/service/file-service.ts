@@ -10,6 +10,10 @@ import { updateEmbeddingsForFile } from '../../lib/embeddings'
 import LocalStorage from '../../db/local'
 import puppeteer from 'puppeteer'
 
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const pdf = require('pdf-parse/lib/pdf-parse.js')
+
 // TODO: ensure no files outside public are ever updated. Security risk.
 
 export async function getFileSystem(folder: string): Promise<PathTree> {
@@ -82,6 +86,18 @@ export async function deleteFile(fullPath: string) {
 
 export async function readFileContent(fullPath: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
+    // If it is a PDF file, read as base64
+    if (fullPath.toLowerCase().endsWith('.pdf')) {
+      readFile(fullPath, (err, data) => {
+        if (err) {
+          console.error(`Error reading PDF file ${fullPath}:`, err)
+          return reject(err)
+        }
+        resolve(data.toString('base64'))
+      })
+      return
+    }
+
     readFile(fullPath, (err, data) => {
       if (err) {
         console.error(`Error reading file ${fullPath}:`, err)
@@ -117,6 +133,16 @@ export async function exportHtmlToPdf(htmlContent: string, outputFilePath: strin
   await browser.close()
 }
 
+async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+  try {
+    const data = await pdf(buffer)
+    return data.text
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error)
+    return ''
+  }
+}
+
 export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
   ipcMain.handle('pull-file-system', async (_, path) => {
     const fileSystem = await getFileSystem(path)
@@ -125,8 +151,14 @@ export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
     
     const embeddings: Promise<void>[] = [];
     for (const path of filePaths) {
-      const content = await readFileContent(path)
-      embeddings.push(updateEmbeddingsForFile(path, content, localStorage))
+      if (path.toLowerCase().endsWith('.pdf')) {
+        const buffer = await readFileBuffer(path)
+        const text = await extractTextFromPdf(buffer)
+        embeddings.push(updateEmbeddingsForFile(path, text, localStorage))
+      } else {
+        const content = await readFileContent(path)
+        embeddings.push(updateEmbeddingsForFile(path, content, localStorage))
+      }
     }
 
     await Promise.all(embeddings)
@@ -136,7 +168,15 @@ export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
 
   ipcMain.handle('update-file', async (_, filePath: string, content: string) => {
     await updateFile(filePath, content)
-    await updateEmbeddingsForFile(filePath, content, localStorage)
+    if (filePath.toLowerCase().endsWith('.pdf')) {
+      // Content for PDF update usually comes as base64 or we re-read from disk?
+      // For simplicity, let's re-read from disk since updateFile writes to disk.
+      const buffer = await readFileBuffer(filePath)
+      const text = await extractTextFromPdf(buffer)
+      await updateEmbeddingsForFile(filePath, text, localStorage)
+    } else {
+      await updateEmbeddingsForFile(filePath, content, localStorage)
+    }
   })
 
   ipcMain.handle('delete-file', async (_, filePath: string) => {
@@ -150,7 +190,13 @@ export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
 
   ipcMain.handle('add-file', async (_, filePath: string, content: string) => {
     await addFile(filePath, content)
-    await updateEmbeddingsForFile(filePath, content, localStorage)
+    if (filePath.toLowerCase().endsWith('.pdf')) {
+      const buffer = await readFileBuffer(filePath)
+      const text = await extractTextFromPdf(buffer)
+      await updateEmbeddingsForFile(filePath, text, localStorage)
+    } else {
+      await updateEmbeddingsForFile(filePath, content, localStorage)
+    }
   })
 
   ipcMain.handle('select-folder', async (_, projectName: string) => {
@@ -161,5 +207,18 @@ export default function setUpFileSystemHandlers(localStorage: LocalStorage) {
   ipcMain.handle('select-file', async () => {
     const folder = await dialog.showOpenDialog({ properties: ['openFile'] })
     return folder
+  })
+}
+
+// Helper to read file as buffer
+async function readFileBuffer(fullPath: string): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    readFile(fullPath, (err, data) => {
+      if (err) {
+        console.error(`Error reading file buffer ${fullPath}:`, err)
+        return reject(err)
+      }
+      resolve(data)
+    })
   })
 }

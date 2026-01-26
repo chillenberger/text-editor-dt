@@ -1,6 +1,6 @@
 import { File, EditorTypes, PathTree } from '../../../types'
 
-const { separator, dirname, basename, extname } = window.pathAPI
+const { separator, dirname, basename, extname } = (window as any).pathAPI
 
 // function expandDir(db: File[]): Dir {
 //   const firstPath = db[0].path.split(separator);
@@ -88,6 +88,8 @@ function getContentTypeFromPath(filePath: string): EditorTypes {
   const ext = extname(filePath).toLowerCase()
   if (ext === '.md' || ext === '.markdown' || ext === '.txt' || ext === '.json') {
     return 'markdown'
+  } else if (ext === '.pdf') {
+    return 'pdf'
   }
   return 'html'
 }

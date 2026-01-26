@@ -1,8 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
-import os from 'os';
+import { createTwoFilesPatch } from 'diff';
 import { randomBytes } from 'crypto';
-import { diffLines, createTwoFilesPatch } from 'diff';
 import { minimatch } from 'minimatch';
 import { normalizePath, expandHome } from './path-utils.js';
 import { isPathWithinAllowedDirectories } from './path-validation.js';
@@ -163,7 +162,7 @@ export async function writeFileContent(filePath: string, content: string): Promi
 
 
 // File Editing Functions
-interface FileEdit {
+export interface FileEdit {
   oldText: string;
   newText: string;
 }

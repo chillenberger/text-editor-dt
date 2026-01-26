@@ -13,6 +13,7 @@ import {
 } from './components/tiptap-editor/tiptap-templates/simple/simple-editor'
 import useCKHtmlEditor from '@renderer/components/ck-editor/ck-editor'
 import DisplayCKEditor from '@renderer/components/ck-editor/ck-editor-display'
+import PdfViewer from './components/pdf-viewer/pdf-viewer'
 import useLogger from '@renderer/hooks/use-logger'
 import ChatWindow from '@renderer/components/chat'
 import LeftNav from './components/left-nav'
@@ -20,13 +21,13 @@ import Toggle from './components/toggle'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFile, faPenToSquare } from '@fortawesome/free-regular-svg-icons'
 import {
-  faLink,
   faSearch,
   faX,
   faFolderPlus,
   faPlus,
   faFileExport,
-  faSync
+  faSync,
+  faLock
 } from '@fortawesome/free-solid-svg-icons'
 import ChatArea from './components/chat-area'
 import { SearchEmbeddings } from './components/search'
@@ -54,11 +55,14 @@ function App(): React.JSX.Element {
     }
   }
 
+  // Send file state on save.
   useEffect(() => {
     const cleanup = window.api.mainRequestFileState(() => {
       const activeFile = activeFileManager.activeFile
       if (activeFile) {
         const content = extractFileContent()
+        // For now PDFs are read-only, so we don't need to send them to main.
+        if (getContentTypeFromPath(activeFile.path) === 'pdf') return
         virtualDir.updateFile(activeFile.path, content)
         activeFileManager.resetActiveFileState()
       }
@@ -75,8 +79,11 @@ function App(): React.JSX.Element {
     const contentType = getContentTypeFromPath(activeFile?.path)
     if (contentType === 'markdown') {
       return markdownEditor?.getMarkdown() || ''
-    } else {
+    } else if (contentType === 'html') {
       return htmlEditor?.editorRef.current?.getData() || ''
+    } else {
+      // Content is current, read-only
+      return activeFile?.content || ''
     }
   }, [activeFileManager.activeFile, markdownEditor, htmlEditor])
 
@@ -90,6 +97,8 @@ function App(): React.JSX.Element {
     } else if (contentType === 'html' && htmlEditor?.editorRef.current) {
       const htmlContent = activeFileManager?.activeFile?.content || ''
       htmlEditor?.editorRef.current.setData(htmlContent)
+    } else if (contentType === 'pdf') {
+      // PDF content is set via activeFile, no editor to update
     }
   }, [activeFileManager.activeFile, markdownEditor, htmlEditor])
 
@@ -257,6 +266,14 @@ function App(): React.JSX.Element {
               <div className="flex items-center gap-2 text-sm text-ide-text-primary">
                 <FontAwesomeIcon icon={faFile} className="text-ide-accent text-xs" />
                 <span className="truncate max-w-md">{activeFileManager.activeFile.path}</span>
+                {['pdf'].includes(getContentTypeFromPath(activeFileManager.activeFile.path)) && (
+                  <span title="Read Only" className="ml-2 flex items-center cursor-help">
+                    <FontAwesomeIcon
+                      icon={faLock}
+                      className="text-ide-text-muted text-xs opacity-50"
+                    />
+                  </span>
+                )}
               </div>
               <div className="flex gap-2">
                 {getContentTypeFromPath(activeFileManager.activeFile.path) === 'html' && (
@@ -282,11 +299,13 @@ function App(): React.JSX.Element {
             <div className="flex-1 overflow-auto bg-ide-base flex flex-col">
               {getContentTypeFromPath(activeFileManager.activeFile.path) === 'markdown' ? (
                 <DisplayEditor editor={markdownEditor} editorType={'markdown'} />
-              ) : (
+              ) : getContentTypeFromPath(activeFileManager.activeFile.path) === 'html' ? (
                 <DisplayCKEditor
                   editorHandle={htmlEditor}
                   defaultContent={activeFileManager.activeFile.content || ''}
                 />
+              ) : (
+                <PdfViewer content={activeFileManager.activeFile.content || ''} />
               )}
             </div>
           </div>
